@@ -1,4 +1,7 @@
 ### Solidity ###
+# Compiled files
+bin/
+
 # Logs
 logs
 *.log

@@ -16,7 +16,10 @@ contract UsersContract {
     // Users count
     uint private usersCount;
 
-    // Functions
+    // Events
+    event onRegisterUser(address, string);
+
+    // Public functions
     function registerUser(string memory name, string memory surname) public {
 
         require(!isUserRegistered(msg.sender));
@@ -25,6 +28,9 @@ contract UsersContract {
         user.surname = surname;
         user.isRegistered = true;
         usersCount++;
+
+        // Send the event
+        emit onRegisterUser(msg.sender, string(abi.encodePacked(name, " ", surname)));
     }
 
     function getUser(address addr) public view returns (string memory, string memory) {
@@ -34,13 +40,14 @@ contract UsersContract {
         return (user.name, user.surname);
     }
 
-    function isUserRegistered(address addr) private view returns (bool) {
-
-        return users[addr].isRegistered;
-    }
-
     function getUsersCount() public view returns (uint) {
 
         return usersCount;
+    }
+
+    // Private functions
+    function isUserRegistered(address addr) private view returns (bool) {
+
+        return users[addr].isRegistered;
     }
 }
