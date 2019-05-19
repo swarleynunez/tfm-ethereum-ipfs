@@ -9,7 +9,7 @@ contract UserContract {
     address public managerContract;
 
     // Country chosen by the user
-    bytes2 private country;
+    bytes2 public country;
 
     // Data storage arrays
     string[] public userResources;
@@ -43,10 +43,5 @@ contract UserContract {
     function assignNewResource(string memory domain) public isManager {
 
         userResources.push(domain);
-    }
-
-    function getUserCountry() public isOwner isManager view returns (bytes2) {
-
-        return country;
     }
 }

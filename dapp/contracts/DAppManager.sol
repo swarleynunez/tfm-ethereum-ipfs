@@ -77,7 +77,7 @@ contract DAppManager {
         // Get user country
         UserContract user = UserContract(users[msg.sender]);
 
-        require(resource.country == user.getUserCountry(), 'The user can not vote the resource.');
+        require(resource.country == user.country(), 'The user can not vote the resource.');
 
         // Search blacklist and vote resource
         BlacklistContract blacklist = BlacklistContract(blacklists[resource.country]);

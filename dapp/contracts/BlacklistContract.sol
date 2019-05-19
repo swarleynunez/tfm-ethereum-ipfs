@@ -5,6 +5,12 @@ contract BlacklistContract {
     // DAppManager address
     address public managerContract;
 
+    // List identifiers
+    byte private constant L0 = 0x00;
+    byte private constant L1 = 0x01;
+    byte private constant L2 = 0x02;
+    byte private constant L3 = 0x03;
+
     // Limits between lists
     uint public L0_L1;
     uint public L1_L2;
@@ -48,15 +54,31 @@ contract BlacklistContract {
 
     function addVoteToResource(string memory domain, address userAddress) public isManager {
 
-        //require(!isAlreadyVotedByUser(domain, userAddress), 'The user has already voted the resource.');
+        require(!isAlreadyVoted(domain, userAddress), 'The user has already voted the resource.');
 
         Voting storage voting = votings[domain];
         voting.voters.push(userAddress);
     }
 
-    // TODO
-    function isAlreadyVotedByUser(string memory domain, address userAddress) public isManager view returns (bool) {
+    function isAlreadyVoted(string memory domain, address userAddress) public view returns (bool) {
 
-        
+        address[] memory voters = votings[domain].voters;
+
+        for (uint i = 0; i < voters.length; i++) {
+
+            if (voters[i] == userAddress) return true;
+        }
+
+        return false;
+    }
+
+    function getResourceLevel(string memory domain) public view returns (byte) {
+
+        uint totalVotes = votings[domain].voters.length;
+
+        if (totalVotes < L0_L1) return L0;
+        else if (totalVotes < L1_L2) return L1;
+        else if (totalVotes < L2_L3) return L2;
+        else return L3;
     }
 }
