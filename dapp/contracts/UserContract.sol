@@ -3,7 +3,7 @@ pragma solidity ^0.5.8;
 contract UserContract {
 
     // Contract owner (user)
-    address private owner;
+    address public owner;
 
     // DAppManager address
     address public managerContract;
@@ -12,8 +12,8 @@ contract UserContract {
     bytes2 public country;
 
     // Data storage arrays
-    string[] public userResources;
-    address[] private userFollowings;
+    string[] public resources;
+    address[] public followings;
 
     // Events
     //
@@ -27,12 +27,6 @@ contract UserContract {
     }
 
     // Modifiers
-    modifier isOwner() {
-
-        require(msg.sender == owner, 'Unauthorized user.');
-        _;
-    }
-
     modifier isManager() {
 
         require(msg.sender == managerContract, 'Unauthorized manager.');
@@ -42,6 +36,50 @@ contract UserContract {
     // Functions
     function assignNewResource(string memory domain) public isManager {
 
-        userResources.push(domain);
+        resources.push(domain);
+    }
+
+    function followUser(address user) public isManager {
+
+        followings.push(user);
+    }
+
+    function unfollowUser(address user) public isManager {
+
+        uint totalFollowings = followings.length;
+
+        for (uint i = 0; i < totalFollowings; i++) {
+
+            if (followings[i] == user) {
+
+                if (i != (totalFollowings - 1)) {
+
+                    followings[i] = followings[totalFollowings - 1];
+                    break;
+                }
+            }
+        }
+
+        followings.length--;
+    }
+
+    function isAlreadyFollowed(address user) public view returns (bool) {
+
+        for (uint i = 0; i < followings.length; i++) {
+
+            if (followings[i] == user) return true;
+        }
+
+        return false;
+    }
+
+    function getResourcesCount() public view returns (uint) {
+
+        return resources.length;
+    }
+
+    function getFollowingsCount() public view returns (uint) {
+
+        return followings.length;
     }
 }

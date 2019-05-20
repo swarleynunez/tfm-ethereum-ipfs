@@ -17,7 +17,7 @@ contract DAppManager {
     }
 
     // Data storage mappings
-    mapping(string => Resource) public resources;
+    mapping(string => Resource) private resources;
     mapping(address => address) public users;
     mapping(bytes2 => address) public blacklists;
 
@@ -84,15 +84,44 @@ contract DAppManager {
         blacklist.addVoteToResource(domain, msg.sender);
     }
 
+    function manageUserFollowings(address anotherUser) public {
+
+        require(msg.sender != anotherUser, 'The user can not follow/unfollow himself.');
+        require(isUserRegistered(msg.sender), 'The sender user is not registered.');
+        require(isUserRegistered(anotherUser), 'The another user is not registered.');
+
+        UserContract user = UserContract(users[msg.sender]);
+
+        if (user.isAlreadyFollowed(anotherUser)) user.unfollowUser(anotherUser);
+        else user.followUser(anotherUser);
+    }
+
+    function searchResource(string memory domain) public view returns (string memory, bytes2, byte) {
+
+        byte L3 = 0x03;
+
+        Resource memory resource = resources[domain];
+
+        if (resource.isChosen) {
+
+            BlacklistContract blacklist = BlacklistContract(blacklists[resource.country]);
+            byte resourceLevel = blacklist.getResourceLevel(domain);
+
+            if (resourceLevel != L3) return (resource.ipnsHash, resource.country, resourceLevel);
+        }
+
+        return ('', 0x0000, 0x00);
+    }
+
     function isDomainChosen(string memory domain) public view returns (bool) {
 
         Resource memory resource = resources[domain];
         return resource.isChosen;
     }
 
-    function isUserRegistered(address userAddress) public view returns (bool) {
+    function isUserRegistered(address user) public view returns (bool) {
 
-        address userContract = users[userAddress];
+        address userContract = users[user];
 
         if (userContract != address(0)) return true;
         else return false;

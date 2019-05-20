@@ -52,21 +52,21 @@ contract BlacklistContract {
         voting.isVotedHere = true;
     }
 
-    function addVoteToResource(string memory domain, address userAddress) public isManager {
+    function addVoteToResource(string memory domain, address user) public isManager {
 
-        require(!isAlreadyVoted(domain, userAddress), 'The user has already voted the resource.');
+        require(!isAlreadyVoted(domain, user), 'The user has already voted the resource.');
 
         Voting storage voting = votings[domain];
-        voting.voters.push(userAddress);
+        voting.voters.push(user);
     }
 
-    function isAlreadyVoted(string memory domain, address userAddress) public view returns (bool) {
+    function isAlreadyVoted(string memory domain, address user) public view returns (bool) {
 
         address[] memory voters = votings[domain].voters;
 
         for (uint i = 0; i < voters.length; i++) {
 
-            if (voters[i] == userAddress) return true;
+            if (voters[i] == user) return true;
         }
 
         return false;

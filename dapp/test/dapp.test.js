@@ -38,7 +38,7 @@ contract('DAppManager', accounts => {
         let managerContract = await userInstance.managerContract();
         let country = await userInstance.country();
         console.log(owner, managerContract, web3.utils.hexToUtf8(country));
-    });*/
+    });
 
     it('Test 4', async () => {
 
@@ -47,7 +47,7 @@ contract('DAppManager', accounts => {
         await instance.registerUser(country, { from: accounts[0] });
         await instance.registerUser(country, { from: accounts[1] });
 
-        await instance.deployNewBlacklist(country, 2);
+        await instance.deployNewBlacklist(country, 0);
         let blContract = await instance.blacklists(country);
 
         let blInstance = await BlacklistContract.at(blContract);
@@ -58,14 +58,31 @@ contract('DAppManager', accounts => {
         console.log(managerContract, L0_L1.toNumber(), L1_L2.toNumber(), L2_L3.toNumber());
 
         await instance.publishNewResource('swarley.com', '/ipfs/QmbezGequPwcsWo8UL4wDF6a8hYwM1hmbzYv2mnKkEWaUp', country);
+        let resource = await instance.searchResource('swarley.com');
+        console.log(resource);
         
-        await instance.voteResource('swarleyy.com', { from: accounts[0] });
+        await instance.voteResource('swarley.com', { from: accounts[0] });
         await instance.voteResource('swarley.com', { from: accounts[1] });
 
-        let voted = await blInstance.isAlreadyVoted('swarley.com', accounts[1]);
+        let voted = await blInstance.isAlreadyVoted('swarley.com', accounts[0]);
         console.log(voted);
 
         let level = await blInstance.getResourceLevel('swarley.com');
         console.log(level);
     });
+
+    it('Test 4', async () => {
+
+        let country = await web3.utils.utf8ToHex('ES');
+
+        await instance.registerUser(country, { from: accounts[0] });
+        await instance.registerUser(country, { from: accounts[1] });
+        await instance.registerUser(country, { from: accounts[2] });
+        await instance.registerUser(country, { from: accounts[3] });
+
+        await instance.manageUserFollowings(accounts[1], { from: accounts[0] });
+        await instance.manageUserFollowings(accounts[2], { from: accounts[0] });
+        await instance.manageUserFollowings(accounts[3], { from: accounts[0] });
+        await instance.manageUserFollowings(accounts[3], { from: accounts[0] });
+    });*/
 });
