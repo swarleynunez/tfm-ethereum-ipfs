@@ -1,6 +1,6 @@
 import Web3 from 'web3';
 
-const getWeb3 = () => {
+const GetWeb3 = () => {
 
     return new Promise((resolve, reject) => {
 
@@ -19,4 +19,4 @@ const getWeb3 = () => {
     });
 };
 
-export default getWeb3;
+export default GetWeb3;
