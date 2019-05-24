@@ -20,7 +20,7 @@ const styles = theme => ({
         minWidth: 520,
         backgroundColor: '#fafafa',
         boxShadow: 'none',
-        marginBottom: 20,
+        marginBottom: 25,
     },
     cardContent: {
         padding: '2px 16px',
@@ -107,7 +107,7 @@ function SearchItem(props) {
                 <Typography variant="body1" style={{ color: '#3f51b5', marginTop: '-5px' }} noWrap>
                     {props.ipfs}
                 </Typography>
-                <Typography variant="body2" style={{ margin: '15px 0 10px 0' }}>
+                <Typography variant="body2" style={{ margin: '5px 0' }}>
                     {props.description}
                 </Typography>
                 {props.children}
@@ -120,9 +120,11 @@ function SearchItem(props) {
                 <IconButton style={{ padding: 6 }}>
                     <StarIcon style={{ fontSize: 32, color: 'rgba(0, 0, 0, 0.54)' }} />
                 </IconButton>
-                <IconButton style={{ padding: 7 }}>
-                    <PersonAddIcon style={{ fontSize: 30, color: 'rgba(0, 0, 0, 0.54)' }} />
-                </IconButton>
+                {props.view == 'searcher' ?
+                    <IconButton style={{ padding: 7 }}>
+                        <PersonAddIcon style={{ fontSize: 30, color: 'rgba(0, 0, 0, 0.54)' }} />
+                    </IconButton>
+                : undefined}
             </CardActions>
         </Card>
     );

@@ -20,14 +20,18 @@
     "html-webpack-plugin": "3.2.0",
     "react": "16.8.6",
     "react-dom": "16.8.6",
+    "react-select-country-list": "1.0.7",
+    "react-toastr": "3.0.0",
     "truffle-contract": "4.0.16",
     "truffle-hdwallet-provider": "1.0.9",
     "web3": "1.0.0-beta.37",
     "webpack": "4.31.0",
     "webpack-cli": "3.3.2",
-    "webpack-dev-server": "3.4.1"
+    "webpack-dev-server": "3.4.1",
+    "wolfram-alpha-api": "https://products.wolframalpha.com/api/libraries/javascript/wolfram-alpha-api-1.0.0-rc.1.tgz"
   },
   "directories": {
     "test": "test"
-  }
+  },
+  "dependencies": {}
 }

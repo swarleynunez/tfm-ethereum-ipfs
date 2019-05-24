@@ -20,6 +20,7 @@ contract DAppManager {
     mapping(string => Resource) private resources;
     mapping(address => address) public users;
     mapping(bytes2 => address) public blacklists;
+    bytes2[] public blacklistsDeployed;
 
     // Events
     //
@@ -55,6 +56,7 @@ contract DAppManager {
     function registerUser(bytes2 userCountry) public {
 
         require(!isUserRegistered(msg.sender), 'The user is already registered.');
+        require(isBlacklistDeployed(userCountry), 'The user country blacklist is not yet deployed.');
 
         users[msg.sender] = address(new UserContract(msg.sender, userCountry));
     }
@@ -64,6 +66,7 @@ contract DAppManager {
         require(!isBlacklistDeployed(country), 'The blacklist of this country is already deployed.');
 
         blacklists[country] = address(new BlacklistContract(votesLimit));
+        blacklistsDeployed.push(country);
     }
 
     function voteResource(string memory domain) public {
@@ -133,5 +136,10 @@ contract DAppManager {
 
         if (blacklistContract != address(0)) return true;
         else return false;
+    }
+
+    function getBlacklistsCount() public view returns (uint) {
+
+        return blacklistsDeployed.length;
     }
 }

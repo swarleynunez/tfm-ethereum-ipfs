@@ -65,7 +65,7 @@ class PersistentDrawerLeft extends React.Component {
     };
 
     render() {
-        
+
         const { classes } = this.props;
         const { open } = this.state;
 
@@ -88,20 +88,20 @@ class PersistentDrawerLeft extends React.Component {
                     }}
                 >
                     <div className={classes.drawerHeader}>
-                        <IconButton 
+                        <IconButton
                             onClick={this.handleDrawer}
                             className={classNames(classes.menuButton)}
                         >
                             <ChevronLeftIcon style={{ fontSize: 40 }} />
                         </IconButton>
                     </div>
-                    <Typography 
+                    <Typography
                         variant="h5"
                         style={{ margin: '30px 16px 5px 16px' }}
                     >
                         <b>Favoritos</b>
                     </Typography>
-                    
+
                     <List>
                         {['Nombre de dominio 1', 'Nombre de dominio 2', 'Nombre de dominio 3'].map((domain, i) => (
                             <ListItem button key={domain}>
