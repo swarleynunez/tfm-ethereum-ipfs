@@ -84,5 +84,16 @@ contract('DAppManager', accounts => {
         await instance.manageUserFollowings(accounts[2], { from: accounts[0] });
         await instance.manageUserFollowings(accounts[3], { from: accounts[0] });
         await instance.manageUserFollowings(accounts[3], { from: accounts[0] });
+    });
+
+    it('Test 5', async () => {
+
+        let country = await web3.utils.utf8ToHex('ES');
+
+        await instance.deployNewBlacklist(country, 1999);
+
+        await instance.registerUser(country, { from: accounts[0] });
+
+        await instance.publishNewResource('carlos.com', 'QmbKwU7vhWy7tYQaeJH3AP4gQdpP7aMfBESPELH3aSo8SQ', '0x4553');
     });*/
 });

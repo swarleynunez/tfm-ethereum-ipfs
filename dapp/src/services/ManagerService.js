@@ -9,6 +9,13 @@ export class ManagerService {
     }
 
     // Setters
+    async publishNewResource(domain, ipnsHash, resourceCountry, from) {
+
+        let country = await this.web3.utils.utf8ToHex(resourceCountry);
+
+        return this.contract.publishNewResource(domain, ipnsHash, country, { from: from, gas: 500000 });
+    }
+
     async registerUser(userCountry, from) {
 
         let country = await this.web3.utils.utf8ToHex(userCountry);
@@ -25,6 +32,17 @@ export class ManagerService {
     }
 
     // Getters
+    async searchResource(domain) {
+
+        let resource = await this.contract.searchResource(domain);
+
+        return {
+            ipnsHash: resource[0],
+            country: await this.web3.utils.hexToUtf8(resource[1]),
+            level: await this.web3.utils.hexToNumber(resource[2])
+        }
+    }
+
     async getDeployedBlacklists() {
 
         let blacklistsCount = await this.getBlacklistsCount();
@@ -95,5 +113,10 @@ export class ManagerService {
     async isDomainChosen(domain) {
 
         return await this.contract.isDomainChosen(domain);
+    }
+
+    async getUserContractAddress(account) {
+
+        return await this.contract.users(account);
     }
 }

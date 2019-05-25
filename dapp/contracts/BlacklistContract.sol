@@ -26,9 +26,6 @@ contract BlacklistContract {
     // Data storage mapping
     mapping(string => Voting) private votings;
 
-    // Events
-    //
-
     // Constructor
     constructor(uint votesLimit) public {
 

@@ -15,9 +15,6 @@ contract UserContract {
     string[] public resources;
     address[] public followings;
 
-    // Events
-    //
-
     // Constructor
     constructor(address origin, bytes2 userCountry) public {
 

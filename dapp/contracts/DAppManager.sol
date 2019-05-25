@@ -22,9 +22,6 @@ contract DAppManager {
     mapping(bytes2 => address) public blacklists;
     bytes2[] public blacklistsDeployed;
 
-    // Events
-    //
-
     // Constructor
     constructor() public {
 

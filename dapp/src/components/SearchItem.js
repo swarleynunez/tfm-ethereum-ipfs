@@ -60,7 +60,7 @@ function SearchItem(props) {
                         <Typography variant="h6" noWrap
                             style={{ fontWeight: 'bold' }}
                         >
-                            <a href={props.href} style={{ color: '#3f51b5' }}>{props.title}</a>
+                            <a href={"https://ipfs.io/ipfs/" + props.href} style={{ color: '#3f51b5' }}>{props.title}</a>
                         </Typography>
                     </Grid>
                     <Grid item xs={2}
@@ -84,10 +84,10 @@ function SearchItem(props) {
                                         <b>Versión:</b> {props.version}
                                     </Typography>
                                     <Typography variant="body2" noWrap>
-                                        <b>Publicado:</b> {props.publishedAt}
+                                        <b>Publicado:</b> {props.created_at}
                                     </Typography>
                                     <Typography variant="body2" noWrap>
-                                        <b>Modificado:</b> {props.editedAt}
+                                        <b>Modificado:</b> {props.updated_at}
                                     </Typography>
                                 </React.Fragment>
                             }
@@ -105,7 +105,7 @@ function SearchItem(props) {
                     {props.domain}
                 </Typography>
                 <Typography variant="body1" style={{ color: '#3f51b5', marginTop: '-5px' }} noWrap>
-                    {props.ipfs}
+                    {"/ipfs/" + props.ipfs}
                 </Typography>
                 <Typography variant="body2" style={{ margin: '5px 0' }}>
                     {props.description}
