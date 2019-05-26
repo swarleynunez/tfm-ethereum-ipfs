@@ -6,12 +6,13 @@ import Grid from '@material-ui/core/Grid';
 import Card from '@material-ui/core/Card';
 import CardActions from '@material-ui/core/CardActions';
 import CardContent from '@material-ui/core/CardContent';
+import Tooltip from '@material-ui/core/Tooltip';
+import Chip from '@material-ui/core/Chip';
 import IconButton from '@material-ui/core/IconButton';
 import ThumbDownIcon from '@material-ui/icons/ThumbDown';
 import StarIcon from '@material-ui/icons/Star';
 import PersonAddIcon from '@material-ui/icons/PersonAdd';
 import InfoIcon from '@material-ui/icons/Info';
-import Tooltip from '@material-ui/core/Tooltip';
 import Divider from '@material-ui/core/Divider';
 
 const styles = theme => ({
@@ -60,7 +61,7 @@ function SearchItem(props) {
                         <Typography variant="h6" noWrap
                             style={{ fontWeight: 'bold' }}
                         >
-                            <a href={"https://ipfs.io/ipfs/" + props.href} style={{ color: '#3f51b5' }}>{props.title}</a>
+                            <a href={"https://ipfs.io/ipfs/" + props.resource.ipfs_hash} style={{ color: '#3f51b5' }}>{props.resource.title}</a>
                         </Typography>
                     </Grid>
                     <Grid item xs={2}
@@ -72,22 +73,22 @@ function SearchItem(props) {
                         <Typography variant="subtitle1" noWrap
                             style={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.54)' }}
                         >
-                            [{props.country}]
+                            [{props.resource.country}]
                         </Typography>
                         <Tooltip
                             title={
                                 <React.Fragment>
                                     <Typography variant="body2" noWrap>
-                                        <b>Tipo:</b> {props.type}
+                                        <b>Tipo:</b> {props.resource.content_type}
                                     </Typography>
                                     <Typography variant="body2" noWrap>
-                                        <b>Versión:</b> {props.version}
+                                        <b>Versión:</b> {props.resource.version}
                                     </Typography>
                                     <Typography variant="body2" noWrap>
-                                        <b>Publicado:</b> {props.created_at}
+                                        <b>Publicado:</b> {props.resource.created_at}
                                     </Typography>
                                     <Typography variant="body2" noWrap>
-                                        <b>Modificado:</b> {props.updated_at}
+                                        <b>Modificado:</b> {props.resource.updated_at}
                                     </Typography>
                                 </React.Fragment>
                             }
@@ -102,29 +103,53 @@ function SearchItem(props) {
                     </Grid>
                 </Grid>
                 <Typography variant="h6" style={{ color: '#3f51b5', fontSize: 18 }} noWrap>
-                    {props.domain}
+                    {props.resource.domain}
                 </Typography>
                 <Typography variant="body1" style={{ color: '#3f51b5', marginTop: '-5px' }} noWrap>
-                    {"/ipfs/" + props.ipfs}
+                    {"/ipfs/" + props.resource.ipfs_hash}
                 </Typography>
                 <Typography variant="body2" style={{ margin: '5px 0' }}>
-                    {props.description}
+                    {props.resource.description}
                 </Typography>
-                {props.children}
+                <div style={{ marginBottom: 12 }}>
+                    {props.resource.tags.map((tag, i) => {
+                        return <Chip key={i} label={tag} style={{ marginRight: 5 }} />
+                    })}
+                </div>
             </CardContent>
             <Divider />
             <CardActions style={{ padding: 0 }}>
-                <IconButton style={{ padding: 10 }}>
-                    <ThumbDownIcon style={{ color: 'rgba(0, 0, 0, 0.54)' }} />
-                </IconButton>
-                <IconButton style={{ padding: 6 }}>
-                    <StarIcon style={{ fontSize: 32, color: 'rgba(0, 0, 0, 0.54)' }} />
-                </IconButton>
-                {props.view == 'searcher' ?
-                    <IconButton style={{ padding: 7 }}>
-                        <PersonAddIcon style={{ fontSize: 30, color: 'rgba(0, 0, 0, 0.54)' }} />
+                {props.isRegistered && props.canUserVote ?
+                    <div>
+                        {props.resource.alreadyVoted ?
+                            <IconButton style={{ padding: 10 }} disabled>
+                                <ThumbDownIcon style={{ color: 'rgb(63, 81, 181)' }} />
+                            </IconButton>
+                            :
+                            <IconButton onClick={props.voteCallback} style={{ padding: 10 }}>
+                                <ThumbDownIcon style={{ color: 'rgba(0, 0, 0, 0.54)' }} />
+                            </IconButton>
+                        }
+                    </div>
+                    : undefined}
+                {props.resource.alreadyFav ?
+                    <IconButton style={{ padding: 6 }} disabled>
+                        <StarIcon style={{ fontSize: 32, color: 'rgb(63, 81, 181)' }} />
                     </IconButton>
-                : undefined}
+                    :
+                    <IconButton onClick={props.favCallback} style={{ padding: 6 }}>
+                        <StarIcon style={{ fontSize: 32, color: 'rgba(0, 0, 0, 0.54)' }} />
+                    </IconButton>
+                }
+                {props.isRegistered && props.view == 'searcher' && !props.isOwner ?
+                    <IconButton onClick={props.followCallback} style={{ padding: 7 }}>
+                        {props.resource.alreadyFollowing ?
+                            <PersonAddIcon style={{ fontSize: 30, color: 'rgb(63, 81, 181)' }} />
+                            :
+                            <PersonAddIcon style={{ fontSize: 30, color: 'rgba(0, 0, 0, 0.54)' }} />
+                        }
+                    </IconButton>
+                    : undefined}
             </CardActions>
         </Card>
     );

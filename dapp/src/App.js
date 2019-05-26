@@ -1,4 +1,5 @@
 import React from 'react';
+import update from 'immutability-helper';
 import GetWeb3 from './utils/GetWeb3';
 import IPFS from 'ipfs';
 import CountryList from 'react-select-country-list';
@@ -45,6 +46,7 @@ export class App extends React.Component {
 
             // Global
             account: undefined,
+            userCountry: '',
             isRegistered: false,
             currentView: '',
             deployedBlacklists: [],
@@ -53,6 +55,7 @@ export class App extends React.Component {
             s_domain: '',
             s_resource: undefined,
             s_showLoader: false,
+            s_notFoundMsg: false,
 
             // Register
             r_country: '',
@@ -96,14 +99,17 @@ export class App extends React.Component {
         this.managerService = new ManagerService(this.manager, this.web3);
 
         // Get IPFS passphrase
-        let pass = localStorage.getItem("passphrase");
-
+        let pass = localStorage.getItem('passphrase');
         if (pass == null) {
 
             this.passphrase = Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
             localStorage.setItem('passphrase', this.passphrase);
         }
         else this.passphrase = pass;
+
+        // Get favorite resources
+        let resources = localStorage.getItem('favorite_resources');
+        if (resources == null) localStorage.setItem('favorite_resources', JSON.stringify([]));
 
         this.ipfs = new IPFS({ pass: this.passphrase });
 
@@ -134,6 +140,27 @@ export class App extends React.Component {
                 this.setState({
                     account: accounts[0].toLowerCase(),
                     currentView: 'searcher',
+                    s_domain: '',               //Searcher
+                    s_resource: undefined,
+                    s_showLoader: false,
+                    s_notFoundMsg: false,
+                    r_country: '',              // Register
+                    r_showLoader: false,
+                    f_showLoader: false,        // Feed
+                    p_showLoader: false,        // Publication
+                    isDomainChosen: false,
+                    ownedByUser: false,
+                    domainErrorMsg: '',
+                    p_domain: '',
+                    p_country: '',
+                    p_title: '',
+                    p_type: '',
+                    p_description: '',
+                    p_tag: '',
+                    p_tags: [],
+                    p_file: undefined,
+                    b_country: '',              // Blacklists
+                    b_showLoader: false,
                 }, () => {
                     this.refresh();
                 });
@@ -144,8 +171,9 @@ export class App extends React.Component {
     // Second executed function
     async refresh() {
 
-        this.getDeployedBlacklists();
-        this.isUserRegistered();
+        await this.getDeployedBlacklists();
+        await this.isUserRegistered();
+        await this.getUserCountry();
     }
 
     // ManagerService functions
@@ -234,17 +262,25 @@ export class App extends React.Component {
         this.setState({ isRegistered: registered });
     }
 
-    async publishNewResource() {
+    async getUserCountry() {
 
-        // User contract
-        let uContract = await this.managerService.getUserContractAddress(this.state.account);
-        let uInstance = await UserContract(this.web3.currentProvider, uContract);
-        let uService = new UserService(uInstance);
+        if (this.state.isRegistered) {
+
+            // User contract
+            let uContract = await this.managerService.getUserContractAddress(this.state.account);
+            let uInstance = await UserContract(this.web3.currentProvider, uContract);
+            let uService = new UserService(uInstance, this.web3);
+
+            let country = await uService.getUserCountry();
+            this.setState({ userCountry: country });
+        }
+    }
+
+    async publishNewResource() {
 
         // Validate existing domain and if is owned by current user
         let chosen = await this.managerService.isDomainChosen(this.state.p_domain);
         let owned = false;
-        //let owned = await uService.isDomainOwnedByUser(this.state.p_domain);
 
         this.setState({
             isDomainChosen: chosen,
@@ -354,44 +390,161 @@ export class App extends React.Component {
 
     async searchResource() {
 
-        this.setState({ s_showLoader: true });
+        if (this.state.s_domain) {
 
-        // Get resource IPNS hash, country and level
-        let resourceSearch = await this.managerService.searchResource(this.state.s_domain);
-        console.log(resourceSearch);
+            this.setState({
+                s_showLoader: true,
+                s_resource: undefined,
+                s_notFoundMsg: false,
+            });
 
-        // Resolve IPNS name and get resource IPFS hash
-        let ipns = await this.ipfs.name.resolve(resourceSearch.ipnsHash);
-        console.log(ipns);
+            // Get resource IPNS hash, country and level
+            let resourceSearch = await this.managerService.searchResource(this.state.s_domain);
 
-        // Get DRID in string format
-        let stringDrid = await this.ipfs.get(ipns.path);
-        console.log(stringDrid[0].content.toString('utf8'));
+            if (resourceSearch.ipnsHash) {
 
-        // Parse DRID into an object
-        let resourceObject = JSON.parse(stringDrid[0].content.toString('utf8'));
-        console.log(resourceObject);
+                // Resolve IPNS name and get resource IPFS hash
+                let ipns = await this.ipfs.name.resolve(resourceSearch.ipnsHash);
 
-        // Add and parse fields
-        resourceObject.country = resourceSearch.country;
-        resourceObject.level = resourceSearch.level;
+                // Get DRID in string format
+                let stringDrid = await this.ipfs.get(ipns.path);
 
-        let createdAt = new Date(resourceObject.created_at);
-        resourceObject.created_at = this.pad(createdAt.getDate()) + "/" +
-            this.pad(createdAt.getMonth() + 1) + "/" +
-            createdAt.getFullYear();
+                // Parse DRID into an object
+                let resourceObject = JSON.parse(stringDrid[0].content.toString('utf8'));
 
-        let updatedAt = new Date(resourceObject.updated_at);
-        resourceObject.updated_at = this.pad(updatedAt.getDate()) + "/" +
-            this.pad(updatedAt.getMonth() + 1) + "/" +
-            updatedAt.getFullYear();
+                console.log(resourceObject);
 
-        this.setState({
-            s_showLoader: false,
-            s_resource: resourceObject,
-        });
+                // Add contry and level to resource object
+                resourceObject.country = resourceSearch.country;
+                resourceObject.level = resourceSearch.level;
 
-        console.log(this.state.s_resource);
+                // Parse timestamps
+                let createdAt = new Date(resourceObject.created_at);
+                resourceObject.created_at = this.pad(createdAt.getDate()) + "/" +
+                    this.pad(createdAt.getMonth() + 1) + "/" +
+                    createdAt.getFullYear();
+                let updatedAt = new Date(resourceObject.updated_at);
+                resourceObject.updated_at = this.pad(updatedAt.getDate()) + "/" +
+                    this.pad(updatedAt.getMonth() + 1) + "/" +
+                    updatedAt.getFullYear();
+
+                // Other information
+                resourceObject.alreadyVoted = await this.isAlreadyVoted(resourceObject.country, resourceObject.domain);
+                resourceObject.alreadyFav = await this.isResourceFav(resourceObject.domain);
+                resourceObject.alreadyFollowing = await this.isUserFollowed(resourceObject.owner);
+
+                this.setState({
+                    s_showLoader: false,
+                    s_resource: resourceObject,
+                });
+            }
+            else {
+
+                this.setState({
+                    s_showLoader: false,
+                    s_notFoundMsg: true,
+                });
+            }
+        }
+    }
+
+    async voteResource(domain) {
+
+        try {
+
+            await this.managerService.voteResource(domain, this.state.account);
+
+            this.setState({ s_resource: update(this.state.s_resource, { alreadyVoted: { $set: true } }) });
+
+            this.container.success(
+                "",
+                <b>Recurso votado con éxito</b>,
+                this.toastConfig
+            );
+        }
+        catch (error) {
+
+            this.container.error(
+                "",
+                <b>Error al votar el recurso</b>,
+                this.toastConfig
+            );
+        }
+    }
+
+    async manageUserFollowings(account, action) {
+
+        let msg;
+
+        try {
+
+            await this.managerService.manageUserFollowings(account, this.state.account);
+
+            if (action == 'follow') {
+
+                this.setState({ s_resource: update(this.state.s_resource, { alreadyFollowing: { $set: true } }) });
+                msg = 'Usuario seguido con éxito';
+            }
+            else {
+
+                this.setState({ s_resource: update(this.state.s_resource, { alreadyFollowing: { $set: false } }) });
+                msg = 'Has dejado de seguir al usuario';
+            }
+
+            this.container.success(
+                "",
+                <b>{msg}</b>,
+                this.toastConfig
+            );
+        }
+        catch (error) {
+
+            if (action == 'follow') msg = 'Error al seguir al usuario';
+            else msg = 'Error al dejar de seguir al usuario';
+
+            this.container.error(
+                "",
+                <b>{msg}</b>,
+                this.toastConfig
+            );
+        }
+    }
+
+    async isAlreadyVoted(country, domain) {
+
+        if (this.state.isRegistered) {
+
+            // Blacklist contract
+            let blContract = await this.managerService.getBlacklistContractAddress(country);
+            let blInstance = await BlacklistContract(this.web3.currentProvider, blContract);
+            let blService = new BlacklistService(blInstance);
+
+            return await blService.isAlreadyVoted(domain, this.state.account);
+        }
+        else return false;
+    }
+
+    async isResourceFav(domain) {
+
+        let resources = localStorage.getItem('favorite_resources');
+        resources = JSON.parse(resources);
+
+        if (resources.find((resource, index) => index == domain)) return true;
+        else return false;
+    }
+
+    async isUserFollowed(account) {
+
+        if (this.state.isRegistered) {
+
+            // User contract
+            let uContract = await this.managerService.getUserContractAddress(this.state.account);
+            let uInstance = await UserContract(this.web3.currentProvider, uContract);
+            let uService = new UserService(uInstance, this.web3);
+
+            return await uService.isAlreadyFollowed(account);
+        }
+        else return false;
     }
 
     // UserService functions
@@ -402,6 +555,8 @@ export class App extends React.Component {
 
     // UI functions
     handleSearchResource(event) { this.setState({ s_domain: event.target.value }); }
+
+    handleSearchOnEnterPress(event) { if (event.key == 'Enter') this.searchResource(); }
 
     handleRegisterCountry(event) { this.setState({ r_country: event.target.value }); }
 
@@ -466,6 +621,7 @@ export class App extends React.Component {
             this.setState({
                 currentView: toView,
                 anchorEl: null,
+                s_domain: '',
             });
         }
     }
@@ -555,7 +711,9 @@ export class App extends React.Component {
                         <InputBase
                             style={{ marginLeft: 8, flex: 1 }}
                             placeholder="Buscar recurso"
+                            value={this.state.s_domain}
                             onChange={event => this.handleSearchResource(event)}
+                            onKeyPress={event => this.handleSearchOnEnterPress(event)}
                         />
                         <Divider
                             style={{ width: 1, height: 28, margin: 4 }}
@@ -569,13 +727,21 @@ export class App extends React.Component {
                             <SearchIcon />
                         </IconButton>
                     </Paper>
-                    {!this.state.s_showLoader && !this.state.s_resource ?
+                    {!this.state.s_showLoader && !this.state.s_resource && !this.state.s_notFoundMsg ?
                         <Typography
                             variant="body1"
                             style={{ fontWeight: 'bold', marginTop: 80, color: 'rgba(0, 0, 0, 0.54)' }}
                         >
                             Publica y comparte tus archivos con total libertad
                         </Typography>
+                        : undefined}
+                    {this.state.s_notFoundMsg ?
+                        <Typography
+                            variant="body1"
+                            style={{ fontWeight: 'bold', marginTop: 80, color: 'rgba(0, 0, 0, 0.54)' }}
+                        >
+                            No se han encontrado resultados
+                            </Typography>
                         : undefined}
                     <Grid item xs={12}
                         container
@@ -586,21 +752,19 @@ export class App extends React.Component {
                     >
                         {this.state.s_resource && !this.state.s_showLoader ?
                             <SearchItem
-                                title={this.state.s_resource.title}
-                                domain={this.state.s_resource.domain}
-                                ipfs={this.state.s_resource.ipfs_hash}
-                                href={this.state.s_resource.ipfs_hash}
-                                description={this.state.s_resource.description}
-                                country={this.state.s_resource.country}
-                                type={this.state.s_resource.content_type}
-                                version={this.state.s_resource.version}
-                                created_at={this.state.s_resource.created_at}
-                                updated_at={this.state.s_resource.updated_at}
-                                view="searcher"
+                                resource={this.state.s_resource}
+                                view={this.state.currentView}
+                                isRegistered={this.state.isRegistered}
+                                isOwner={this.state.account == this.state.s_resource.owner}
+                                canUserVote={this.state.userCountry == this.state.s_resource.country}
+                                voteCallback={() => this.voteResource(this.state.s_resource.domain)}
+                                favCallback={() => this.voteResource()}
+                                followCallback={
+                                    () => this.manageUserFollowings(
+                                        this.state.s_resource.owner,
+                                        this.state.s_resource.alreadyFollowing ? 'unfollow' : 'follow')
+                                }
                             >
-                                <div style={{ marginBottom: 12 }}>
-                                    <Chip label="Etiqueta1" style={{ marginRight: 5 }} />
-                                </div>
                             </SearchItem>
                             : undefined}
                         {this.state.s_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}

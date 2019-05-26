@@ -1,7 +1,8 @@
 export class UserService {
 
-    constructor(contract) {
+    constructor(contract, web3) {
         this.contract = contract;
+        this.web3 = web3;
     }
 
     // Setters
@@ -23,5 +24,16 @@ export class UserService {
     async getResourcesCount() {
 
         return (await this.contract.getResourcesCount()).toNumber();
+    }
+
+    async isAlreadyFollowed(account) {
+
+        return this.contract.isAlreadyFollowed(account);
+    }
+
+    async getUserCountry() {
+
+        let hexCountry = await this.contract.country();
+        return this.web3.utils.hexToUtf8(hexCountry);
     }
 }

@@ -31,6 +31,16 @@ export class ManagerService {
         return this.contract.deployNewBlacklist(country, votesLimit, { from });
     }
 
+    async voteResource(domain, from) {
+
+        return this.contract.voteResource(domain, { from: from, gas: 100000 });
+    }
+
+    async manageUserFollowings(account, from) {
+
+        return this.contract.manageUserFollowings(account, { from: from, gas: 100000 });
+    }
+
     // Getters
     async searchResource(domain) {
 
@@ -112,11 +122,18 @@ export class ManagerService {
 
     async isDomainChosen(domain) {
 
-        return await this.contract.isDomainChosen(domain);
+        return this.contract.isDomainChosen(domain);
     }
 
     async getUserContractAddress(account) {
 
-        return await this.contract.users(account);
+        return this.contract.users(account);
+    }
+
+    async getBlacklistContractAddress(blacklistCountry) {
+
+        let country = await this.web3.utils.utf8ToHex(blacklistCountry);
+
+        return this.contract.blacklists(country);
     }
 }
