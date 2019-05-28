@@ -6,15 +6,12 @@ const GetWeb3 = () => {
 
         window.addEventListener('load', function () {
 
-            if (typeof window.ethereum !== undefined || typeof window.web3 !== undefined) {
+            if (window.ethereum != undefined || window.web3 != undefined) {
 
                 const provider = window.ethereum || window.web3.currentProvider;
                 resolve(new Web3(provider));
             }
-            else {
-                console.log('No provider found. Please, install Metamask.');
-                reject();
-            }
+            else reject();
         });
     });
 };

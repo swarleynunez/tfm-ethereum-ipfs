@@ -5,10 +5,7 @@ export class UserService {
         this.web3 = web3;
     }
 
-    // Setters
-    //
-
-    // Getters
+    // Functions
     async isDomainOwnedByUser(domain) {
 
         let resourcesCount = await this.getResourcesCount();
@@ -21,9 +18,42 @@ export class UserService {
         return false;
     }
 
+    async getUserResources() {
+
+        let resourcesCount = await this.getResourcesCount();
+        let resources = [];
+
+        for (let i = 0; i < resourcesCount; i++) {
+
+            let resource = await this.contract.resources(i);
+            resources.push(resource);
+        }
+
+        return resources;
+    }
+
     async getResourcesCount() {
 
         return (await this.contract.getResourcesCount()).toNumber();
+    }
+
+    async getUserFollowings() {
+
+        let followingsCount = await this.getFollowingsCount();
+        let followings = [];
+
+        for (let i = 0; i < followingsCount; i++) {
+
+            let following = await this.contract.followings(i);
+            followings.push(following);
+        }
+
+        return followings;
+    }
+
+    async getFollowingsCount() {
+
+        return (await this.contract.getFollowingsCount()).toNumber();
     }
 
     async isAlreadyFollowed(account) {

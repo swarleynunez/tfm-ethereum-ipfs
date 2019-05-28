@@ -27,13 +27,15 @@ import InputBase from '@material-ui/core/InputBase';
 import Chip from '@material-ui/core/Chip';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import TextField from '@material-ui/core/TextField';
+import ListItem from '@material-ui/core/ListItem';
+import Divider from '@material-ui/core/Divider';
 import MenuIcon from '@material-ui/icons/Menu';
 import SearchIcon from '@material-ui/icons/Search';
 import AddIcon from '@material-ui/icons/Add';
 import CloudUploadIcon from '@material-ui/icons/CloudUpload';
 import PersonAddIcon from '@material-ui/icons/PersonAdd';
 import PlaylistAddIcon from '@material-ui/icons/PlaylistAdd';
-import Divider from '@material-ui/core/Divider';
+import DeleteIcon from '@material-ui/icons/Delete';
 
 // React component
 export class App extends React.Component {
@@ -50,6 +52,8 @@ export class App extends React.Component {
             isRegistered: false,
             currentView: '',
             deployedBlacklists: [],
+            favResources: {},
+            metamaskError: true,
 
             // Searcher
             s_domain: '',
@@ -62,7 +66,9 @@ export class App extends React.Component {
             r_showLoader: false,
 
             // Feed
+            followingsResources: [],
             f_showLoader: false,
+            f_notFoundMsg: false,
 
             // Publication
             p_showLoader: false,
@@ -70,7 +76,6 @@ export class App extends React.Component {
             ownedByUser: false,
             domainErrorMsg: '',
             p_domain: '',
-            p_country: '',
             p_title: '',
             p_type: '',
             p_description: '',
@@ -83,7 +88,7 @@ export class App extends React.Component {
             b_showLoader: false,
 
             // UI
-            anchorEl: null,
+            anchorEl: null
         };
 
         this.handleOpenMenu = this.handleOpenMenu.bind(this);
@@ -93,79 +98,108 @@ export class App extends React.Component {
     // First executed function
     async componentDidMount() {
 
-        // Instances
-        this.web3 = await GetWeb3();
-        this.manager = await DAppManager(this.web3.currentProvider);
-        this.managerService = new ManagerService(this.manager, this.web3);
+        try {
 
-        // Get IPFS passphrase
-        let pass = localStorage.getItem('passphrase');
-        if (pass == null) {
+            // Utils
+            this.toastConfig = { timeOut: 2500 };
+            this.countries = CountryList().getData();
 
-            this.passphrase = Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
-            localStorage.setItem('passphrase', this.passphrase);
-        }
-        else this.passphrase = pass;
+            // Instances
+            this.web3 = await GetWeb3();
+            this.manager = await DAppManager(this.web3.currentProvider);
+            this.managerService = new ManagerService(this.manager, this.web3);
 
-        // Get favorite resources
-        let resources = localStorage.getItem('favorite_resources');
-        if (resources == null) localStorage.setItem('favorite_resources', JSON.stringify([]));
+            // Get IPFS passphrase and instance node
+            let pass = localStorage.getItem('passphrase');
+            if (pass == null) {
 
-        this.ipfs = new IPFS({ pass: this.passphrase });
-
-        // Utils
-        this.toastConfig = { timeOut: 2500 };
-        this.countries = CountryList().getData();
-        this.pad = (number) => { return number < 10 ? '0' + number : number; }
-
-        // Check permission to access MetaMask accounts
-        await this.web3.currentProvider.enable();
-
-        // Get initial account
-        let account = (await this.web3.eth.getAccounts())[0];
-
-        // Set initial state and refresh data
-        this.setState({
-            account: account.toLowerCase(),
-            currentView: 'searcher',
-        }, () => {
-            this.refresh();
-        });
-
-        // Update data when account is changed in MetaMask
-        this.web3.currentProvider.on('accountsChanged', function (accounts) {
-
-            if (accounts[0] !== undefined) {
-
-                this.setState({
-                    account: accounts[0].toLowerCase(),
-                    currentView: 'searcher',
-                    s_domain: '',               //Searcher
-                    s_resource: undefined,
-                    s_showLoader: false,
-                    s_notFoundMsg: false,
-                    r_country: '',              // Register
-                    r_showLoader: false,
-                    f_showLoader: false,        // Feed
-                    p_showLoader: false,        // Publication
-                    isDomainChosen: false,
-                    ownedByUser: false,
-                    domainErrorMsg: '',
-                    p_domain: '',
-                    p_country: '',
-                    p_title: '',
-                    p_type: '',
-                    p_description: '',
-                    p_tag: '',
-                    p_tags: [],
-                    p_file: undefined,
-                    b_country: '',              // Blacklists
-                    b_showLoader: false,
-                }, () => {
-                    this.refresh();
-                });
+                this.passphrase = Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
+                localStorage.setItem('passphrase', this.passphrase);
             }
-        }.bind(this));
+            else this.passphrase = pass;
+            this.ipfs = new IPFS({ pass: this.passphrase });
+
+            // Check permission to access MetaMask accounts
+            await this.web3.currentProvider.enable();
+
+            // Get initial account
+            let account = (await this.web3.eth.getAccounts())[0];
+
+            // Set initial state and refresh data
+            this.setState({
+                account: account.toLowerCase(),
+                currentView: 'searcher'
+            }, () => {
+                this.refresh();
+            });
+
+            // Update data when account is changed in MetaMask
+            this.web3.currentProvider.on('accountsChanged', function (accounts) {
+
+                if (accounts[0] !== undefined) {
+
+                    this.setState({
+                        account: accounts[0].toLowerCase(), // Global
+                        currentView: 'searcher',
+                        favResources: {},
+
+                        s_domain: '',                       //Searcher
+                        s_resource: undefined,
+                        s_showLoader: false,
+                        s_notFoundMsg: false,
+                        r_country: '',                      // Register
+                        r_showLoader: false,
+                        followingsResources: [],            // Feed
+                        f_showLoader: false,
+                        f_notFoundMsg: false,
+                        p_showLoader: false,                // Publication
+                        isDomainChosen: false,
+                        ownedByUser: false,
+                        domainErrorMsg: '',
+                        p_domain: '',
+                        p_title: '',
+                        p_type: '',
+                        p_description: '',
+                        p_tag: '',
+                        p_tags: [],
+                        p_file: undefined,
+                        b_country: '',                      // Blacklists
+                        b_showLoader: false
+                    }, () => {
+                        this.refresh();
+                    });
+                }
+            }.bind(this));
+
+            // Events
+            this.manager.onDeployedBlacklist((error, event) => {
+
+                this.getDeployedBlacklists();
+            });
+            this.manager.onPublishedResource((error, event) => {
+
+                let account = event.args.publisher.toLowerCase();
+
+                if (account != this.state.account && this.isUserFollowed(account)) {
+
+                    this.getUserFollowingsResources();
+                }
+            });
+
+            this.setState({ metamaskError: false });
+        }
+        catch (error) {
+
+            this.setState({ metamaskError: true });
+
+            this.container.error(
+                "",
+                <b>Por favor, instala y configura la extensión MetaMask en tu navegador</b>,
+                { timeOut: 15000 }
+            );
+
+            console.error('Please, install and configure MetaMask extension in your browser.');
+        }
     }
 
     // Second executed function
@@ -174,9 +208,11 @@ export class App extends React.Component {
         await this.getDeployedBlacklists();
         await this.isUserRegistered();
         await this.getUserCountry();
+        await this.initFavResources();
+        await this.getUserFollowingsResources();
     }
 
-    // ManagerService functions
+    // Functions
     async registerUser() {
 
         let country = this.state.r_country;
@@ -187,18 +223,16 @@ export class App extends React.Component {
 
             await this.managerService.registerUser(country, this.state.account);
 
-            this.getDeployedBlacklists();
-
             this.setState({
                 currentView: 'searcher',
                 isRegistered: true,
                 r_showLoader: false,
-                r_country: '',
+                r_country: ''
             });
 
             this.container.success(
                 "",
-                <b>Usuario registrado con éxito</b>,
+                <b>Usuario registrado</b>,
                 this.toastConfig
             );
         }
@@ -224,17 +258,15 @@ export class App extends React.Component {
 
             await this.managerService.deployNewBlacklist(country, this.state.account);
 
-            this.getDeployedBlacklists();
-
             this.setState({
                 currentView: 'searcher',
                 b_showLoader: false,
-                b_country: '',
+                b_country: ''
             });
 
             this.container.success(
                 "",
-                <b>Listas negras desplegadas con éxito</b>,
+                <b>Listas negras desplegadas</b>,
                 this.toastConfig
             );
         }
@@ -285,7 +317,7 @@ export class App extends React.Component {
         this.setState({
             isDomainChosen: chosen,
             ownedByUser: owned,
-            domainErrorMsg: (chosen && !owned) ? 'Nombre de dominio ocupado' : '',
+            domainErrorMsg: (chosen && !owned) ? 'Nombre de dominio ocupado' : ''
         });
 
         try {
@@ -302,25 +334,22 @@ export class App extends React.Component {
                     p_domain: '',
                     isDomainChosen: false,
                     ownedByUser: false,
-                    p_country: '',
                     p_title: '',
                     p_type: '',
                     p_description: '',
                     p_tag: '',
                     p_tags: [],
-                    p_file: undefined,
+                    p_file: undefined
                 });
 
                 this.container.success(
                     "",
-                    <b>Recurso publicado con éxito</b>,
+                    <b>Recurso publicado</b>,
                     this.toastConfig
                 );
             }
         }
         catch (error) {
-
-            console.log(error);
 
             this.setState({ p_showLoader: false });
 
@@ -335,7 +364,6 @@ export class App extends React.Component {
     async addResourceToIPFS() {
 
         const keysList = await this.ipfs.key.list();
-        console.log(keysList);
 
         // Check if update an existing resource or create a new
         if (this.state.ownedByUser) {
@@ -350,7 +378,6 @@ export class App extends React.Component {
 
             // Add resource to IPFS
             const resourceHash = (await this.ipfs.add(this.state.p_file))[0].hash;
-            console.log(resourceHash);
 
             // Create new DRID
             let drid = new Object();
@@ -364,12 +391,10 @@ export class App extends React.Component {
             drid['tags'] = this.state.p_tags;
             drid.created_at = Date.now();
             drid.updated_at = Date.now();
-            console.log(JSON.stringify(drid));
 
             // Add drid to IPFS
             const dridBuffer = IPFS.Buffer.from(JSON.stringify(drid));
             const dridHash = (await this.ipfs.add(dridBuffer))[0].hash;
-            console.log(dridHash);
 
             // Generate new key
             if (!keysList.find(key => key.name == this.state.p_domain)) {
@@ -379,27 +404,47 @@ export class App extends React.Component {
 
             // Get IPNS hash for new DRID
             const ipns = await this.ipfs.name.publish(dridHash, { key: this.state.p_domain });
-            console.log(ipns);
 
             // Only the first time
-            await this.managerService.publishNewResource(this.state.p_domain, ipns.name, this.state.p_country, this.state.account);
+            await this.managerService.publishNewResource(this.state.p_domain, ipns.name, this.state.userCountry, this.state.account);
         }
-
-        console.log("FIN!");
     }
 
-    async searchResource() {
+    async getResourceFromSearcher() {
 
         if (this.state.s_domain) {
 
             this.setState({
                 s_showLoader: true,
                 s_resource: undefined,
-                s_notFoundMsg: false,
+                s_notFoundMsg: false
             });
 
+            let resourceObject = await this.searchResource(this.state.s_domain);
+
+            if (resourceObject) {
+
+                this.setState({
+                    s_showLoader: false,
+                    s_resource: resourceObject
+                });
+            }
+            else {
+
+                this.setState({
+                    s_showLoader: false,
+                    s_notFoundMsg: true
+                });
+            }
+        }
+    }
+
+    async searchResource(domain) {
+
+        try {
+
             // Get resource IPNS hash, country and level
-            let resourceSearch = await this.managerService.searchResource(this.state.s_domain);
+            let resourceSearch = await this.managerService.searchResource(domain);
 
             if (resourceSearch.ipnsHash) {
 
@@ -412,40 +457,19 @@ export class App extends React.Component {
                 // Parse DRID into an object
                 let resourceObject = JSON.parse(stringDrid[0].content.toString('utf8'));
 
-                console.log(resourceObject);
-
                 // Add contry and level to resource object
                 resourceObject.country = resourceSearch.country;
                 resourceObject.level = resourceSearch.level;
 
-                // Parse timestamps
-                let createdAt = new Date(resourceObject.created_at);
-                resourceObject.created_at = this.pad(createdAt.getDate()) + "/" +
-                    this.pad(createdAt.getMonth() + 1) + "/" +
-                    createdAt.getFullYear();
-                let updatedAt = new Date(resourceObject.updated_at);
-                resourceObject.updated_at = this.pad(updatedAt.getDate()) + "/" +
-                    this.pad(updatedAt.getMonth() + 1) + "/" +
-                    updatedAt.getFullYear();
-
                 // Other information
                 resourceObject.alreadyVoted = await this.isAlreadyVoted(resourceObject.country, resourceObject.domain);
-                resourceObject.alreadyFav = await this.isResourceFav(resourceObject.domain);
+                resourceObject.alreadyFav = await this.isFavResource(resourceObject.domain);
                 resourceObject.alreadyFollowing = await this.isUserFollowed(resourceObject.owner);
 
-                this.setState({
-                    s_showLoader: false,
-                    s_resource: resourceObject,
-                });
-            }
-            else {
-
-                this.setState({
-                    s_showLoader: false,
-                    s_notFoundMsg: true,
-                });
+                return resourceObject;
             }
         }
+        catch (error) { }
     }
 
     async voteResource(domain) {
@@ -454,11 +478,26 @@ export class App extends React.Component {
 
             await this.managerService.voteResource(domain, this.state.account);
 
-            this.setState({ s_resource: update(this.state.s_resource, { alreadyVoted: { $set: true } }) });
+            // Update searcher
+            if (this.state.s_resource && this.state.s_resource.domain == domain) {
+
+                this.setState({ s_resource: update(this.state.s_resource, { alreadyVoted: { $set: true } }) });
+            }
+
+            // Update feed
+            this.state.followingsResources.map((resourceObject, i) => {
+
+                if (resourceObject.domain == domain) {
+
+                    var resWithNewField = update(this.state.followingsResources[i], { alreadyVoted: { $set: true } });
+                    var newfollowingsResources = update(this.state.followingsResources, { $splice: [[i, 1, resWithNewField]] });
+                    this.setState({ followingsResources: newfollowingsResources });
+                }
+            });
 
             this.container.success(
                 "",
-                <b>Recurso votado con éxito</b>,
+                <b>Recurso votado</b>,
                 this.toastConfig
             );
         }
@@ -472,6 +511,69 @@ export class App extends React.Component {
         }
     }
 
+    async manageFavResources(domain, ipnsHash) {
+
+        let resources, valueUpdated;
+
+        if (await this.isFavResource(domain)) {
+
+            valueUpdated = false;
+
+            resources = JSON.parse(localStorage.getItem(this.state.account));
+            delete resources[domain];
+            localStorage.setItem(this.state.account, JSON.stringify(resources));
+
+            this.container.success(
+                "",
+                <b>Recurso eliminado de favoritos</b>,
+                this.toastConfig
+            );
+        }
+        else {
+
+            valueUpdated = true;
+
+            resources = JSON.parse(localStorage.getItem(this.state.account));
+            resources[domain] = ipnsHash;
+            localStorage.setItem(this.state.account, JSON.stringify(resources));
+
+            this.container.success(
+                "",
+                <b>Recurso añadido a favoritos</b>,
+                this.toastConfig
+            );
+        }
+
+        this.setState({ favResources: resources });
+
+        // Update searcher state
+        if (this.state.s_resource && this.state.s_resource.domain == domain) {
+
+            this.setState({
+                s_resource: update(this.state.s_resource, { alreadyFav: { $set: valueUpdated } }),
+            });
+        }
+
+        // Update feed state
+        this.state.followingsResources.map((resourceObject, i) => {
+
+            if (resourceObject.domain == domain) {
+
+                var resWithNewField = update(this.state.followingsResources[i], { alreadyFav: { $set: valueUpdated } });
+                var newfollowingsResources = update(this.state.followingsResources, { $splice: [[i, 1, resWithNewField]] });
+                this.setState({ followingsResources: newfollowingsResources });
+            }
+        });
+    }
+
+    async initFavResources() {
+
+        let resources = localStorage.getItem(this.state.account);
+
+        if (resources == null) localStorage.setItem(this.state.account, JSON.stringify(new Object()));
+        else this.setState({ favResources: JSON.parse(resources) });
+    }
+
     async manageUserFollowings(account, action) {
 
         let msg;
@@ -483,7 +585,7 @@ export class App extends React.Component {
             if (action == 'follow') {
 
                 this.setState({ s_resource: update(this.state.s_resource, { alreadyFollowing: { $set: true } }) });
-                msg = 'Usuario seguido con éxito';
+                msg = 'Ahora sigues al usuario';
             }
             else {
 
@@ -496,6 +598,8 @@ export class App extends React.Component {
                 <b>{msg}</b>,
                 this.toastConfig
             );
+
+            await this.getUserFollowingsResources();
         }
         catch (error) {
 
@@ -505,6 +609,41 @@ export class App extends React.Component {
             this.container.error(
                 "",
                 <b>{msg}</b>,
+                this.toastConfig
+            );
+        }
+    }
+
+    async deleteFavResource(domain) {
+
+        if (await this.isFavResource(domain)) {
+
+            let resources = JSON.parse(localStorage.getItem(this.state.account));
+            delete resources[domain];
+            localStorage.setItem(this.state.account, JSON.stringify(resources));
+
+            this.setState({ favResources: resources });
+
+            // Update searcher
+            if (this.state.s_resource && this.state.s_resource.domain == domain) {
+
+                this.setState({ s_resource: update(this.state.s_resource, { alreadyFav: { $set: false } }) });
+            }
+
+            // Update feed
+            this.state.followingsResources.map((resourceObject, i) => {
+
+                if (resourceObject.domain == domain) {
+
+                    var resWithNewField = update(this.state.followingsResources[i], { alreadyFav: { $set: false } });
+                    var newfollowingsResources = update(this.state.followingsResources, { $splice: [[i, 1, resWithNewField]] });
+                    this.setState({ followingsResources: newfollowingsResources });
+                }
+            });
+
+            this.container.success(
+                "",
+                <b>Recurso eliminado de favoritos</b>,
                 this.toastConfig
             );
         }
@@ -524,12 +663,13 @@ export class App extends React.Component {
         else return false;
     }
 
-    async isResourceFav(domain) {
+    async isFavResource(domain) {
 
-        let resources = localStorage.getItem('favorite_resources');
-        resources = JSON.parse(resources);
+        await this.initFavResources();
 
-        if (resources.find((resource, index) => index == domain)) return true;
+        let resources = JSON.parse(localStorage.getItem(this.state.account));
+
+        if (resources[domain]) return true;
         else return false;
     }
 
@@ -547,16 +687,72 @@ export class App extends React.Component {
         else return false;
     }
 
-    // UserService functions
-    //
+    async getUserFollowingsResources() {
 
-    // BlacklistService functions
-    //
+        if (this.state.isRegistered) {
+
+            this.setState({
+                followingsResources: [],
+                f_showLoader: true,
+                f_notFoundMsg: false
+            });
+
+            // Current user contract
+            let uContract = await this.managerService.getUserContractAddress(this.state.account);
+            let uInstance = await UserContract(this.web3.currentProvider, uContract);
+            let uService = new UserService(uInstance, this.web3);
+
+            // Get current user followings addresses
+            let followings = await uService.getUserFollowings();
+            await Promise.all(followings.map(async (address, i) => {
+
+                // Following contract
+                uContract = await this.managerService.getUserContractAddress(address);
+                uInstance = await UserContract(this.web3.currentProvider, uContract);
+                uService = new UserService(uInstance, this.web3);
+
+                // Get following resources
+                let resources = await uService.getUserResources();
+                await Promise.all(resources.map(async (domain, i) => {
+
+                    let newResource = await this.searchResource(domain);
+
+                    if (newResource) {
+
+                        let resourcesArray = this.state.followingsResources;
+                        resourcesArray.push(newResource);
+                        this.setState({ followingsResources: resourcesArray });
+                    }
+                }));
+            }));
+
+            // Order results by update time
+            await this.orderFollowingsByDate();
+
+            this.setState({
+                f_showLoader: false,
+                f_notFoundMsg: this.state.followingsResources.length > 0 ? false : true
+            });
+        }
+    }
+
+    async orderFollowingsByDate() {
+
+        let auxFollowings = this.state.followingsResources;
+
+        auxFollowings.sort((a, b) => {
+            if (a.updated_at < b.updated_at) return 1;
+            if (a.updated_at > b.updated_at) return -1;
+            return 0;
+        });
+
+        this.setState({ followingsResources: auxFollowings });
+    }
 
     // UI functions
     handleSearchResource(event) { this.setState({ s_domain: event.target.value }); }
 
-    handleSearchOnEnterPress(event) { if (event.key == 'Enter') this.searchResource(); }
+    handleSearchOnEnterPress(event) { if (event.key == 'Enter') this.getResourceFromSearcher(); }
 
     handleRegisterCountry(event) { this.setState({ r_country: event.target.value }); }
 
@@ -564,15 +760,15 @@ export class App extends React.Component {
 
     handlePublicationDomain(event) {
 
+        let domain = event.target.value.trim();
+
         this.setState({
-            p_domain: event.target.value,
+            p_domain: domain,
             isDomainChosen: false,
             ownedByUser: false,
             domainErrorMsg: '',
         });
     }
-
-    handlePublicationCountry(event) { this.setState({ p_country: event.target.value }); }
 
     handlePublicationTitle(event) { this.setState({ p_title: event.target.value }); }
 
@@ -603,7 +799,7 @@ export class App extends React.Component {
 
         this.setState({
             p_tags: this.state.p_tags.filter(function (item) {
-                return item !== tag
+                return item != tag;
             })
         });
     }
@@ -621,7 +817,7 @@ export class App extends React.Component {
             this.setState({
                 currentView: toView,
                 anchorEl: null,
-                s_domain: '',
+                s_domain: ''
             });
         }
     }
@@ -629,528 +825,493 @@ export class App extends React.Component {
     // View
     render() {
 
-        const { anchorEl } = this.state;
-
         return <React.Fragment>
 
-            <PersistentDrawerLeft />
-
-            <div>
-                <Button
-                    aria-owns={anchorEl ? 'simple-menu' : undefined}
-                    aria-haspopup="true"
-                    onClick={event => this.handleOpenMenu(event)}
-                    style={{ position: 'absolute', top: 5, right: 3, color: 'rgb(0, 0, 0, 0.54)' }}
-                >
-                    <MenuIcon style={{ fontSize: 40 }} />
-                </Button>
-                <Menu
-                    id="simple-menu"
-                    anchorEl={anchorEl}
-                    open={Boolean(anchorEl)}
-                    onClose={() => this.handleCloseMenu(undefined)}
-                    disableAutoFocusItem={Boolean(true)}
-                    style={{ top: 40 }}
-                >
-                    <MenuItem
-                        onClick={() => this.handleCloseMenu('searcher')}
-                        selected={this.state.currentView == 'searcher'}
-                    >
-                        Buscador
-                    </MenuItem>
-                    {!this.state.isRegistered ?
-                        <MenuItem
-                            onClick={() => this.handleCloseMenu('register')}
-                            selected={this.state.currentView == 'register'}
-                        >
-                            Registrarse
-                    </MenuItem>
-                        : undefined}
-                    <MenuItem
-                        onClick={() => this.handleCloseMenu('feed')}
-                        selected={this.state.currentView == 'feed'}
-                        disabled={!this.state.isRegistered}
-                    >
-                        Feed
-                    </MenuItem>
-                    <MenuItem
-                        onClick={() => this.handleCloseMenu('publication')}
-                        selected={this.state.currentView == 'publication'}
-                        disabled={!this.state.isRegistered}
-                    >
-                        Publicar Recurso
-                    </MenuItem>
-                    <Divider />
-                    <MenuItem
-                        onClick={() => this.handleCloseMenu('blacklists')}
-                        selected={this.state.currentView == 'blacklists'}
-                    >
-                        Crear Listas Negras
-                    </MenuItem>
-                </Menu>
-            </div>
-
-            {this.state.currentView == 'searcher' ?
-                <Grid item xs={12}
-                    container
-                    direction="column"
-                    justify="center"
-                    alignItems="center"
-                    style={{ marginTop: '8%' }}
-                >
-                    <Typography
-                        variant="h2"
-                        style={{ fontWeight: 'bold', color: '#3f51b5' }}
-                    >
-                        <i>Dsearch</i>
-                    </Typography>
-                    <Paper
-                        style={{ marginTop: 30, padding: '4px 4px', display: 'flex', alignItems: 'center', width: 600 }}
-                        elevation={1}
-                    >
-                        <InputBase
-                            style={{ marginLeft: 8, flex: 1 }}
-                            placeholder="Buscar recurso"
-                            value={this.state.s_domain}
-                            onChange={event => this.handleSearchResource(event)}
-                            onKeyPress={event => this.handleSearchOnEnterPress(event)}
-                        />
-                        <Divider
-                            style={{ width: 1, height: 28, margin: 4 }}
-                        />
-                        <IconButton
-                            color="primary"
-                            style={{ padding: 10 }}
-                            aria-label="Directions"
-                            onClick={() => this.searchResource()}
-                        >
-                            <SearchIcon />
-                        </IconButton>
-                    </Paper>
-                    {!this.state.s_showLoader && !this.state.s_resource && !this.state.s_notFoundMsg ?
-                        <Typography
-                            variant="body1"
-                            style={{ fontWeight: 'bold', marginTop: 80, color: 'rgba(0, 0, 0, 0.54)' }}
-                        >
-                            Publica y comparte tus archivos con total libertad
-                        </Typography>
-                        : undefined}
-                    {this.state.s_notFoundMsg ?
-                        <Typography
-                            variant="body1"
-                            style={{ fontWeight: 'bold', marginTop: 80, color: 'rgba(0, 0, 0, 0.54)' }}
-                        >
-                            No se han encontrado resultados
-                            </Typography>
-                        : undefined}
-                    <Grid item xs={12}
-                        container
-                        direction="row"
-                        justify="center"
-                        alignItems="flex-start"
-                        style={{ marginTop: 60 }}
-                    >
-                        {this.state.s_resource && !this.state.s_showLoader ?
-                            <SearchItem
-                                resource={this.state.s_resource}
-                                view={this.state.currentView}
-                                isRegistered={this.state.isRegistered}
-                                isOwner={this.state.account == this.state.s_resource.owner}
-                                canUserVote={this.state.userCountry == this.state.s_resource.country}
-                                voteCallback={() => this.voteResource(this.state.s_resource.domain)}
-                                favCallback={() => this.voteResource()}
-                                followCallback={
-                                    () => this.manageUserFollowings(
-                                        this.state.s_resource.owner,
-                                        this.state.s_resource.alreadyFollowing ? 'unfollow' : 'follow')
-                                }
+            {!this.state.metamaskError ?
+                <div>
+                    <PersistentDrawerLeft>
+                        {Object.keys(this.state.favResources).length == 0 ?
+                            <Typography
+                                variant="h6"
+                                style={{ fontSize: 16, textAlign: 'center', marginTop: 12, color: 'rgba(0, 0, 0, 0.7)' }}
                             >
-                            </SearchItem>
+                                Vacío
+                            </Typography>
                             : undefined}
-                        {this.state.s_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}
-                    </Grid>
-                </Grid>
-                : undefined}
+                        {Object.keys(this.state.favResources).map((domain, i) => (
+                            <ListItem key={i} style={{ marginTop: '-5px', marginBottom: '-5px' }}>
+                                <Typography variant="h6" style={{ maxWidth: '220px' }} noWrap>
+                                    <a href={"https://ipfs.io/ipfs/" + this.state.favResources[domain]}
+                                        style={{ color: '#3f51b5', fontSize: 18, fontWeight: 'bold' }}>
+                                        {domain}
+                                    </a>
+                                </Typography>
+                                <IconButton
+                                    onClick={() => this.deleteFavResource(domain)}
+                                    style={{ position: 'absolute', right: 0, padding: 8, color: 'rgb(0, 0, 0, 0.54)' }}
+                                >
+                                    <DeleteIcon style={{ fontSize: 26 }} />
+                                </IconButton>
+                            </ListItem>
+                        ))}
+                    </PersistentDrawerLeft>
 
-            {this.state.currentView == 'register' ?
-                <Grid item xs={12}
-                    container
-                    direction="column"
-                    justify="center"
-                    alignItems="center"
-                >
-                    <TextField
-                        select
-                        SelectProps={{ native: true }}
-                        margin="normal"
-                        variant="outlined"
-                        required={Boolean(true)}
-                        onChange={event => this.handleRegisterCountry(event)}
-                        value={this.state.r_country}
-                        disabled={this.state.r_showLoader}
-                        style={{ minWidth: 300 }}
-                    >
-                        <option key={0} value="" disabled>Elige un país</option>
-                        {this.countries.map((country, i) => {
-                            if (this.state.deployedBlacklists.includes(country.value)) {
-                                return <option key={i + 1} value={country.value}>{country.label}</option>
-                            }
-                        })}
-                    </TextField>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => this.registerUser()}
-                        style={{ height: 45, marginTop: 50 }}
-                        disabled={!this.state.r_country}
-                    >
-                        <b>Registrarse</b>
-                        <PersonAddIcon style={{ fontSize: 25, marginLeft: 12 }} />
-                    </Button>
-                    {this.state.r_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}
-                </Grid>
-                : undefined}
-
-            {this.state.currentView == 'feed' ?
-                <Grid item xs={12}
-                    container
-                    direction="column"
-                    justify="center"
-                    alignItems="center"
-                >
-                    <SearchItem
-                        title="MARCA - Diario online líder en información deportiva"
-                        domain="domain.eu.ak"
-                        ipfs="ipfs/QmRW3V9znzFW9M5FYbitSEvd5dQrPWGvPvgQD6LM22Tv8D"
-                        href="https://google.com"
-                        description="La mejor información deportiva en castellano actualizada minuto a minuto en noticias, vídeos, fotos, retransmisiones y resultados en directo."
-                        country="ES"
-                        type="Página Web"
-                        version="2"
-                        created_at="10/05/2019"
-                        updated_at="11/05/2019"
-                        view="feed"
-                    >
-                        <div style={{ marginBottom: 12 }}>
-                            <Chip label="Etiqueta1" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta2" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta3" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta4" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta5" style={{ marginRight: 5 }} />
-                        </div>
-                    </SearchItem>
-                    <SearchItem
-                        title="MARCA - Diario online líder en información deportiva"
-                        domain="domain.eu.ak"
-                        ipfs="ipfs/QmRW3V9znzFW9M5FYbitSEvd5dQrPWGvPvgQD6LM22Tv8D"
-                        href="https://google.com"
-                        description="La mejor información deportiva en castellano actualizada minuto a minuto en noticias, vídeos, fotos, retransmisiones y resultados en directo."
-                        country="ES"
-                        type="Página Web"
-                        version="2"
-                        created_at="10/05/2019"
-                        updated_at="11/05/2019"
-                        view="feed"
-                    >
-                        <div style={{ marginBottom: 12 }}>
-                            <Chip label="Etiqueta1" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta2" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta3" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta4" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta5" style={{ marginRight: 5 }} />
-                        </div>
-                    </SearchItem>
-                    <SearchItem
-                        title="MARCA - Diario online líder en información deportiva"
-                        domain="domain.eu.ak"
-                        ipfs="ipfs/QmRW3V9znzFW9M5FYbitSEvd5dQrPWGvPvgQD6LM22Tv8D"
-                        href="https://google.com"
-                        description="La mejor información deportiva en castellano actualizada minuto a minuto en noticias, vídeos, fotos, retransmisiones y resultados en directo."
-                        country="ES"
-                        type="Página Web"
-                        version="2"
-                        created_at="10/05/2019"
-                        updated_at="11/05/2019"
-                        view="feed"
-                    >
-                        <div style={{ marginBottom: 12 }}>
-                            <Chip label="Etiqueta1" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta2" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta3" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta4" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta5" style={{ marginRight: 5 }} />
-                        </div>
-                    </SearchItem>
-                    <SearchItem
-                        title="MARCA - Diario online líder en información deportiva"
-                        domain="domain.eu.ak"
-                        ipfs="ipfs/QmRW3V9znzFW9M5FYbitSEvd5dQrPWGvPvgQD6LM22Tv8D"
-                        href="https://google.com"
-                        description="La mejor información deportiva en castellano actualizada minuto a minuto en noticias, vídeos, fotos, retransmisiones y resultados en directo."
-                        country="ES"
-                        type="Página Web"
-                        version="2"
-                        created_at="10/05/2019"
-                        updated_at="11/05/2019"
-                        view="feed"
-                    >
-                        <div style={{ marginBottom: 12 }}>
-                            <Chip label="Etiqueta1" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta2" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta3" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta4" style={{ marginRight: 5 }} />
-                            <Chip label="Etiqueta5" style={{ marginRight: 5 }} />
-                        </div>
-                    </SearchItem>
-                </Grid>
-                : undefined}
-
-            {this.state.currentView == 'publication' ?
-                <Grid item xs={12}
-                    container
-                    direction="column"
-                    justify="center"
-                    alignItems="center"
-                >
-                    <Grid item xs={12}
-                        container
-                        direction="row"
-                        justify="center"
-                        alignItems="center"
-                    >
-                        <TextField
-                            type="text"
-                            label="Dominio"
-                            error={this.state.isDomainChosen && !this.state.ownedByUser}
-                            helperText={this.state.domainErrorMsg}
-                            margin="normal"
-                            variant="outlined"
-                            autoFocus={Boolean(true)}
-                            required={Boolean(true)}
-                            inputProps={{ maxLength: 30 }}
-                            onChange={event => this.handlePublicationDomain(event)}
-                            value={this.state.p_domain}
-                            disabled={this.state.p_showLoader}
-                            style={{ width: '40%', marginRight: '5%' }}
-                        />
-                        <TextField
-                            select
-                            SelectProps={{ native: true }}
-                            margin="normal"
-                            variant="outlined"
-                            required={Boolean(true)}
-                            onChange={event => this.handlePublicationCountry(event)}
-                            value={this.state.p_country}
-                            disabled={this.state.p_showLoader}
-                            style={{ width: '25%' }}
+                    <div>
+                        <Button
+                            aria-owns={this.state.anchorEl ? 'simple-menu' : undefined}
+                            aria-haspopup="true"
+                            onClick={event => this.handleOpenMenu(event)}
+                            style={{ padding: 8, position: 'fixed', top: 1, right: 1, color: 'rgb(0, 0, 0, 0.54)' }}
                         >
-                            <option key={0} value="" disabled>Elige un país</option>
-                            {this.countries.map((country, i) => {
-                                if (this.state.deployedBlacklists.includes(country.value)) {
-                                    return <option key={i + 1} value={country.value}>{country.label}</option>
-                                }
-                            })}
-                        </TextField>
-                    </Grid>
-                    <Grid item xs={12}
-                        container
-                        direction="row"
-                        justify="center"
-                        alignItems="center"
-                    >
-                        <TextField
-                            type="text"
-                            label="Título"
-                            margin="normal"
-                            variant="outlined"
-                            required={Boolean(true)}
-                            inputProps={{ maxLength: 80 }}
-                            onChange={event => this.handlePublicationTitle(event)}
-                            value={this.state.p_title}
-                            disabled={this.state.p_showLoader}
-                            style={{ width: '40%', marginRight: '5%' }}
-                        />
-                        <TextField
-                            select
-                            SelectProps={{ native: true }}
-                            margin="normal"
-                            variant="outlined"
-                            required={Boolean(true)}
-                            onChange={event => this.handlePublicationType(event)}
-                            value={this.state.p_type}
-                            disabled={this.state.p_showLoader}
-                            style={{ width: '25%' }}
+                            <MenuIcon style={{ fontSize: 40 }} />
+                        </Button>
+                        <Menu
+                            id="simple-menu"
+                            anchorEl={this.state.anchorEl}
+                            open={Boolean(this.state.anchorEl)}
+                            onClose={() => this.handleCloseMenu(undefined)}
+                            disableAutoFocusItem={Boolean(true)}
+                            style={{ top: 40 }}
                         >
-                            <option key={0} value="" disabled>Elige un tipo</option>
-                            <option key={1} value="Página Web">Página Web</option>
-                            <option key={2} value="Imagen">Imagen</option>
-                            <option key={3} value="Vídeo">Vídeo</option>
-                            <option key={4} value="Documento">Documento</option>
-                        </TextField>
-                    </Grid>
-                    <Grid item xs={12}
-                        container
-                        direction="row"
-                        justify="center"
-                        alignItems="baseline"
-                    >
-                        <TextField
-                            multiline
-                            rows="5"
-                            type="text"
-                            label="Descripción"
-                            margin="normal"
-                            variant="outlined"
-                            required={Boolean(true)}
-                            inputProps={{ maxLength: 300 }}
-                            onChange={event => this.handlePublicationDescription(event)}
-                            value={this.state.p_description}
-                            disabled={this.state.p_showLoader}
-                            style={{ width: '40%', marginRight: '5%' }}
-                        />
-                        <Grid
+                            <MenuItem
+                                onClick={() => this.handleCloseMenu('searcher')}
+                                selected={this.state.currentView == 'searcher'}
+                            >
+                                Buscador
+                    </MenuItem>
+                            {!this.state.isRegistered ?
+                                <MenuItem
+                                    onClick={() => this.handleCloseMenu('register')}
+                                    selected={this.state.currentView == 'register'}
+                                >
+                                    Registrarse
+                    </MenuItem>
+                                : undefined}
+                            <MenuItem
+                                onClick={() => this.handleCloseMenu('feed')}
+                                selected={this.state.currentView == 'feed'}
+                                disabled={!this.state.isRegistered}
+                            >
+                                Feed
+                    </MenuItem>
+                            <MenuItem
+                                onClick={() => this.handleCloseMenu('publication')}
+                                selected={this.state.currentView == 'publication'}
+                                disabled={!this.state.isRegistered}
+                            >
+                                Publicar Recurso
+                    </MenuItem>
+                            <Divider />
+                            <MenuItem
+                                onClick={() => this.handleCloseMenu('blacklists')}
+                                selected={this.state.currentView == 'blacklists'}
+                            >
+                                Crear Listas Negras
+                    </MenuItem>
+                        </Menu>
+                    </div>
+
+                    {this.state.currentView == 'searcher' ?
+                        <Grid item xs={12}
                             container
                             direction="column"
                             justify="center"
-                            alignItems="flex-start"
-                            style={{ width: '25%' }}
+                            alignItems="center"
+                            style={{ marginTop: 190 }}
+                        >
+                            <Typography
+                                variant="h2"
+                                style={{ fontWeight: 'bold', color: '#3f51b5' }}
+                            >
+                                <i>Dsearch</i>
+                            </Typography>
+                            <Paper
+                                style={{ marginTop: 30, padding: '4px 4px', display: 'flex', alignItems: 'center', width: 600 }}
+                                elevation={1}
+                            >
+                                <InputBase
+                                    style={{ marginLeft: 8, flex: 1 }}
+                                    placeholder="Buscar recurso"
+                                    value={this.state.s_domain}
+                                    onChange={event => this.handleSearchResource(event)}
+                                    onKeyPress={event => this.handleSearchOnEnterPress(event)}
+                                />
+                                <Divider
+                                    style={{ width: 1, height: 28, margin: 4 }}
+                                />
+                                <IconButton
+                                    color="primary"
+                                    style={{ padding: 10 }}
+                                    aria-label="Directions"
+                                    onClick={() => this.getResourceFromSearcher()}
+                                >
+                                    <SearchIcon />
+                                </IconButton>
+                            </Paper>
+                            {!this.state.s_showLoader && !this.state.s_resource && !this.state.s_notFoundMsg ?
+                                <Typography
+                                    variant="body1"
+                                    style={{ fontWeight: 'bold', marginTop: 80, color: 'rgba(0, 0, 0, 0.54)' }}
+                                >
+                                    Publica y comparte tus archivos con total libertad
+                            </Typography>
+                                : undefined}
+                            {this.state.s_notFoundMsg ?
+                                <Typography
+                                    variant="body1"
+                                    style={{ fontWeight: 'bold', marginTop: 80, color: 'rgba(0, 0, 0, 0.54)' }}
+                                >
+                                    No se han encontrado resultados
+                            </Typography>
+                                : undefined}
+                            <Grid item xs={12}
+                                container
+                                direction="row"
+                                justify="center"
+                                alignItems="flex-start"
+                                style={{ marginTop: 60 }}
+                            >
+                                {this.state.s_resource && !this.state.s_showLoader ?
+                                    <SearchItem
+                                        resource={this.state.s_resource}
+                                        view={this.state.currentView}
+                                        isRegistered={this.state.isRegistered}
+                                        isOwner={this.state.account == this.state.s_resource.owner}
+                                        canUserVote={this.state.userCountry == this.state.s_resource.country}
+                                        voteCallback={() => this.voteResource(this.state.s_resource.domain)}
+                                        favCallback={
+                                            () => this.manageFavResources(
+                                                this.state.s_resource.domain,
+                                                this.state.s_resource.ipfs_hash)
+                                        }
+                                        followCallback={
+                                            () => this.manageUserFollowings(
+                                                this.state.s_resource.owner,
+                                                this.state.s_resource.alreadyFollowing ? 'unfollow' : 'follow')
+                                        }
+                                    >
+                                    </SearchItem>
+                                    : undefined}
+                                {this.state.s_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}
+                            </Grid>
+                        </Grid>
+                        : undefined}
+
+                    {this.state.currentView == 'register' ?
+                        <Grid item xs={12}
+                            container
+                            direction="column"
+                            justify="center"
+                            alignItems="center"
+                            style={{ marginTop: 100 }}
+                        >
+                            <TextField
+                                select
+                                SelectProps={{ native: true }}
+                                margin="normal"
+                                variant="outlined"
+                                required={Boolean(true)}
+                                onChange={event => this.handleRegisterCountry(event)}
+                                value={this.state.r_country}
+                                disabled={this.state.r_showLoader}
+                                style={{ minWidth: 300 }}
+                            >
+                                <option key={0} value="" disabled>Elige un país</option>
+                                {this.countries.map((country, i) => {
+                                    if (this.state.deployedBlacklists.includes(country.value)) {
+                                        return <option key={i + 1} value={country.value}>{country.label}</option>
+                                    }
+                                })}
+                            </TextField>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => this.registerUser()}
+                                style={{ height: 45, marginTop: 50 }}
+                                disabled={!this.state.r_country || this.state.r_showLoader}
+                            >
+                                <b>Registrarse</b>
+                                <PersonAddIcon style={{ fontSize: 25, marginLeft: 12 }} />
+                            </Button>
+                            {this.state.r_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}
+                        </Grid>
+                        : undefined}
+
+                    {this.state.currentView == 'feed' ?
+                        <Grid item xs={12}
+                            container
+                            direction="column"
+                            justify="center"
+                            alignItems="center"
+                            style={{ marginTop: 100 }}
+                        >
+                            {this.state.followingsResources.map((resourceObject, i) => {
+                                return <SearchItem key={i}
+                                    resource={resourceObject}
+                                    view={this.state.currentView}
+                                    isRegistered={this.state.isRegistered}
+                                    isOwner={this.state.account == resourceObject.owner}
+                                    canUserVote={this.state.userCountry == resourceObject.country}
+                                    voteCallback={() => this.voteResource(resourceObject.domain)}
+                                    favCallback={
+                                        () => this.manageFavResources(
+                                            resourceObject.domain,
+                                            resourceObject.ipfs_hash)
+                                    }
+                                >
+                                </SearchItem>
+                            })}
+                            {this.state.f_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}
+                            {this.state.f_notFoundMsg ?
+                                <Typography
+                                    variant="body1"
+                                    style={{ fontWeight: 'bold', marginTop: 15, color: 'rgba(0, 0, 0, 0.54)' }}
+                                >
+                                    No se han encontrado resultados
+                                </Typography>
+                                : undefined}
+                        </Grid>
+                        : undefined}
+
+                    {this.state.currentView == 'publication' ?
+                        <Grid item xs={12}
+                            container
+                            direction="column"
+                            justify="center"
+                            alignItems="center"
+                            style={{ marginTop: 100 }}
                         >
                             <Grid item xs={12}
                                 container
                                 direction="row"
-                                justify="space-between"
+                                justify="center"
                                 alignItems="center"
-                                style={{ marginBottom: 5 }}
                             >
                                 <TextField
                                     type="text"
-                                    label="Etiqueta"
-                                    margin="none"
+                                    label="Dominio"
+                                    error={this.state.isDomainChosen && !this.state.ownedByUser}
+                                    helperText={this.state.domainErrorMsg}
+                                    margin="normal"
                                     variant="outlined"
+                                    autoFocus={Boolean(true)}
                                     required={Boolean(true)}
-                                    inputProps={{ maxLength: 20 }}
-                                    onChange={event => this.handlePublicationTags(event)}
-                                    value={this.state.p_tag}
+                                    inputProps={{ maxLength: 40 }}
+                                    onChange={event => this.handlePublicationDomain(event)}
+                                    value={this.state.p_domain}
                                     disabled={this.state.p_showLoader}
-                                    style={{ width: '80%' }}
+                                    style={{ width: '40%', marginBottom: 10 }}
                                 />
-                                <Grid
+                                <Grid item xs={12}
                                     container
-                                    direction="column"
+                                    direction="row"
                                     justify="center"
                                     alignItems="center"
-                                    style={{ width: '20%' }}
+                                    style={{ margin: 16 }}
                                 >
-                                    <IconButton
-                                        onClick={() => this.handleAddChip()}
+                                    <input
+                                        type="file"
+                                        id="upload-files-button"
+                                        required={Boolean(true)}
+                                        onChange={event => this.handlePublicationFiles(event)}
                                         disabled={this.state.p_showLoader}
-                                        style={{ padding: 6 }}
+                                        style={{ display: 'none' }}
+                                    />
+                                    <label
+                                        htmlFor="upload-files-button"
+                                        style={{ marginBottom: 0 }}
                                     >
-                                        <AddIcon style={{ fontSize: 32, color: 'rgba(0, 0, 0, 0.54)' }} />
-                                    </IconButton>
+                                        <Button
+                                            variant="contained"
+                                            component="span"
+                                            color="default"
+                                            size="medium"
+                                            style={{ height: 45 }}
+                                        >
+                                            Añadir Archivo
+                                        </Button>
+                                    </label>
                                 </Grid>
                             </Grid>
                             <Grid item xs={12}
                                 container
                                 direction="row"
-                                justify="flex-start"
-                                alignItems="flex-start"
+                                justify="center"
+                                alignItems="center"
                             >
-                                {this.state.p_tags.map((tag, i) => {
-                                    return <Chip key={i} label={tag} onDelete={() => this.handleDeleteChip(tag)} style={{ margin: '3px 3px 0 0' }} />
-                                })}
+                                <TextField
+                                    type="text"
+                                    label="Título"
+                                    margin="normal"
+                                    variant="outlined"
+                                    required={Boolean(true)}
+                                    inputProps={{ maxLength: 80 }}
+                                    onChange={event => this.handlePublicationTitle(event)}
+                                    value={this.state.p_title}
+                                    disabled={this.state.p_showLoader}
+                                    style={{ width: '40%', marginRight: '5%' }}
+                                />
+                                <TextField
+                                    select
+                                    SelectProps={{ native: true }}
+                                    margin="normal"
+                                    variant="outlined"
+                                    required={Boolean(true)}
+                                    onChange={event => this.handlePublicationType(event)}
+                                    value={this.state.p_type}
+                                    disabled={this.state.p_showLoader}
+                                    style={{ width: '25%' }}
+                                >
+                                    <option key={0} value="" disabled>Elige un tipo</option>
+                                    <option key={1} value="Página Web">Página Web</option>
+                                    <option key={2} value="Imagen">Imagen</option>
+                                    <option key={3} value="Vídeo">Vídeo</option>
+                                    <option key={4} value="Documento">Documento</option>
+                                </TextField>
+                            </Grid>
+                            <Grid item xs={12}
+                                container
+                                direction="row"
+                                justify="center"
+                                alignItems="baseline"
+                            >
+                                <TextField
+                                    multiline
+                                    rows="5"
+                                    type="text"
+                                    label="Descripción"
+                                    margin="normal"
+                                    variant="outlined"
+                                    required={Boolean(true)}
+                                    inputProps={{ maxLength: 300 }}
+                                    onChange={event => this.handlePublicationDescription(event)}
+                                    value={this.state.p_description}
+                                    disabled={this.state.p_showLoader}
+                                    style={{ width: '40%', marginRight: '5%' }}
+                                />
+                                <Grid
+                                    container
+                                    direction="column"
+                                    justify="center"
+                                    alignItems="flex-start"
+                                    style={{ width: '25%' }}
+                                >
+                                    <Grid item xs={12}
+                                        container
+                                        direction="row"
+                                        justify="space-between"
+                                        alignItems="center"
+                                        style={{ marginBottom: 5 }}
+                                    >
+                                        <TextField
+                                            type="text"
+                                            label="Etiqueta"
+                                            margin="none"
+                                            variant="outlined"
+                                            required={Boolean(true)}
+                                            inputProps={{ maxLength: 20 }}
+                                            onChange={event => this.handlePublicationTags(event)}
+                                            value={this.state.p_tag}
+                                            disabled={this.state.p_showLoader}
+                                            style={{ width: '80%' }}
+                                        />
+                                        <Grid
+                                            container
+                                            direction="column"
+                                            justify="center"
+                                            alignItems="center"
+                                            style={{ width: '20%' }}
+                                        >
+                                            <IconButton
+                                                onClick={() => this.handleAddChip()}
+                                                disabled={this.state.p_showLoader}
+                                                style={{ padding: 6 }}
+                                            >
+                                                <AddIcon style={{ fontSize: 32, color: 'rgba(0, 0, 0, 0.54)' }} />
+                                            </IconButton>
+                                        </Grid>
+                                    </Grid>
+                                    <Grid item xs={12}
+                                        container
+                                        direction="row"
+                                        justify="flex-start"
+                                        alignItems="flex-start"
+                                    >
+                                        {this.state.p_tags.map((tag, i) => {
+                                            return <Chip key={i} label={tag} onDelete={() => this.handleDeleteChip(tag)} style={{ margin: '3px 3px 0 0' }} />
+                                        })}
+                                    </Grid>
+                                </Grid>
+                            </Grid>
+                            <Grid item xs={12}
+                                container
+                                direction="column"
+                                justify="center"
+                                alignItems="center"
+                            >
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={() => this.publishNewResource()}
+                                    disabled={
+                                        !this.state.p_domain ||
+                                        !this.state.p_title ||
+                                        !this.state.p_type ||
+                                        !this.state.p_description ||
+                                        this.state.p_tags.length < 3 ||
+                                        !this.state.p_file ||
+                                        this.state.p_showLoader
+                                    }
+                                    style={{ height: 45, marginTop: 60 }}
+                                >
+                                    <b>Publicar Recurso</b>
+                                    <CloudUploadIcon style={{ fontSize: 25, marginLeft: 12 }} />
+                                </Button>
+                                {this.state.p_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}
                             </Grid>
                         </Grid>
-                    </Grid>
-                    <Grid item xs={12}
-                        container
-                        direction="column"
-                        justify="center"
-                        alignItems="center"
-                    >
-                        <input
-                            type="file"
-                            id="upload-files-button"
-                            required={Boolean(true)}
-                            onChange={event => this.handlePublicationFiles(event)}
-                            disabled={this.state.p_showLoader}
-                            style={{ display: 'none' }}
-                        />
-                        <label
-                            htmlFor="upload-files-button"
-                            style={{ marginBottom: 0 }}
+                        : undefined}
+
+                    {this.state.currentView == 'blacklists' ?
+                        <Grid item xs={12}
+                            container
+                            direction="column"
+                            justify="center"
+                            alignItems="center"
+                            style={{ marginTop: 100 }}
                         >
+                            <TextField
+                                select
+                                SelectProps={{ native: true }}
+                                margin="normal"
+                                variant="outlined"
+                                required={Boolean(true)}
+                                onChange={event => this.handleBlacklistsCountry(event)}
+                                value={this.state.b_country}
+                                disabled={this.state.b_showLoader}
+                                style={{ minWidth: 350 }}
+                            >
+                                <option key={0} value="" disabled>Elige un país</option>
+                                {this.countries.map((country, i) => {
+                                    if (!this.state.deployedBlacklists.includes(country.value)) {
+                                        return <option key={i + 1} value={country.value}>{country.label}</option>
+                                    }
+                                })}
+                            </TextField>
                             <Button
                                 variant="contained"
-                                component="span"
-                                color="default"
-                                size="medium"
-                                style={{ height: 45, marginTop: 15, position: 'absolute', left: '15%' }}
+                                color="primary"
+                                onClick={() => this.deployNewBlacklist()}
+                                style={{ height: 45, marginTop: 50 }}
+                                disabled={!this.state.b_country || this.state.b_showLoader}
                             >
-                                Añadir Archivo
+                                <b>Crear Listas Negras</b>
+                                <PlaylistAddIcon style={{ fontSize: 30, marginLeft: 12 }} />
                             </Button>
-                        </label>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={() => this.publishNewResource()}
-                            disabled={
-                                !this.state.p_domain ||
-                                !this.state.p_country ||
-                                !this.state.p_title ||
-                                !this.state.p_type ||
-                                !this.state.p_description ||
-                                this.state.p_tags.length < 3 ||
-                                !this.state.p_file ||
-                                this.state.p_showLoader
-                            }
-                            style={{ height: 45, marginTop: 100 }}
-                        >
-                            <b>Publicar Recurso</b>
-                            <CloudUploadIcon style={{ fontSize: 25, marginLeft: 12 }} />
-                        </Button>
-                        {this.state.p_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}
-                    </Grid>
-                </Grid>
-                : undefined}
-
-            {this.state.currentView == 'blacklists' ?
-                <Grid item xs={12}
-                    container
-                    direction="column"
-                    justify="center"
-                    alignItems="center"
-                >
-                    <TextField
-                        select
-                        SelectProps={{ native: true }}
-                        margin="normal"
-                        variant="outlined"
-                        required={Boolean(true)}
-                        onChange={event => this.handleBlacklistsCountry(event)}
-                        value={this.state.b_country}
-                        disabled={this.state.b_showLoader}
-                        style={{ minWidth: 350 }}
-                    >
-                        <option key={0} value="" disabled>Elige un país</option>
-                        {this.countries.map((country, i) => {
-                            if (!this.state.deployedBlacklists.includes(country.value)) {
-                                return <option key={i + 1} value={country.value}>{country.label}</option>
-                            }
-                        })}
-                    </TextField>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => this.deployNewBlacklist()}
-                        style={{ height: 45, marginTop: 50 }}
-                        disabled={!this.state.b_country}
-                    >
-                        <b>Crear Listas Negras</b>
-                        <PlaylistAddIcon style={{ fontSize: 30, marginLeft: 12 }} />
-                    </Button>
-                    {this.state.b_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}
-                </Grid>
+                            {this.state.b_showLoader ? <CircularProgress style={{ marginTop: 10 }} /> : undefined}
+                        </Grid>
+                        : undefined}
+                </div>
                 : undefined}
 
             <ToastContainer ref={(ref) => this.container = ref} className="toast-bottom-right" />

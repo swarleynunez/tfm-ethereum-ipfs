@@ -6,10 +6,8 @@ import Typography from '@material-ui/core/Typography';
 import Drawer from '@material-ui/core/Drawer';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import List from '@material-ui/core/List';
-import Divider from '@material-ui/core/Divider';
 import IconButton from '@material-ui/core/IconButton';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemText from '@material-ui/core/ListItemText';
+import Divider from '@material-ui/core/Divider';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
 import ChevronRightIcon from '@material-ui/icons/ChevronRight';
 import Grey from '@material-ui/core/colors/grey';
@@ -21,8 +19,7 @@ const styles = {
         display: 'flex',
     },
     menuButton: {
-        marginTop: 3,
-        marginLeft: 3,
+        margin: 1,
         padding: 8,
     },
     hide: {
@@ -39,7 +36,7 @@ const styles = {
     drawerHeader: {
         display: 'flex',
         alignItems: 'center',
-        padding: '0 8px',
+        padding: 0,
         justifyContent: 'flex-end',
     },
 };
@@ -57,12 +54,7 @@ class PersistentDrawerLeft extends React.Component {
         this.handleDrawer = this.handleDrawer.bind(this);
     }
 
-    handleDrawer() {
-
-        this.setState({
-            open: !this.state.open
-        });
-    };
+    handleDrawer() { this.setState({ open: !this.state.open }); };
 
     render() {
 
@@ -75,9 +67,11 @@ class PersistentDrawerLeft extends React.Component {
                 <IconButton
                     onClick={this.handleDrawer}
                     className={classNames(classes.menuButton, open)}
+                    style={{ position: 'fixed' }}
                 >
                     <ChevronRightIcon style={{ fontSize: 40 }} />
                 </IconButton>
+                <Divider />
                 <Drawer
                     className={classes.drawer}
                     variant="persistent"
@@ -97,17 +91,12 @@ class PersistentDrawerLeft extends React.Component {
                     </div>
                     <Typography
                         variant="h5"
-                        style={{ margin: '30px 16px 5px 16px' }}
+                        style={{ margin: '30px 16px 5px 16px', color: 'rgb(0, 0, 0, 0.7)', fontSize: 28 }}
                     >
                         <b>Favoritos</b>
                     </Typography>
-
                     <List>
-                        {['Nombre de dominio 1', 'Nombre de dominio 2', 'Nombre de dominio 3'].map((domain, i) => (
-                            <ListItem button key={domain}>
-                                <ListItemText primary={domain} />
-                            </ListItem>
-                        ))}
+                        {this.props.children}
                     </List>
                 </Drawer>
             </div>

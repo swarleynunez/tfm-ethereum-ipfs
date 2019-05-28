@@ -22,6 +22,10 @@ contract DAppManager {
     mapping(bytes2 => address) public blacklists;
     bytes2[] public blacklistsDeployed;
 
+    // Events
+    event onDeployedBlacklist();
+    event onPublishedResource(address publisher);
+
     // Constructor
     constructor() public {
 
@@ -35,6 +39,10 @@ contract DAppManager {
         require(!isDomainChosen(domain), 'The domain is already taken.');
         require(isBlacklistDeployed(country), 'The blacklist is not yet deployed.');
 
+        // Get user
+        UserContract user = UserContract(users[msg.sender]);
+        require(country == user.country(), 'The user can not publish the resource.');
+
         // Store the new resource
         Resource storage resource = resources[domain];
         resource.ipnsHash = ipnsHash;
@@ -42,12 +50,14 @@ contract DAppManager {
         resource.isChosen = true;
 
         // Assign resource to its owner
-        UserContract user = UserContract(users[msg.sender]);
         user.assignNewResource(domain);
 
         // Register resource in its blacklist
         BlacklistContract blacklist = BlacklistContract(blacklists[country]);
         blacklist.initializeNewResource(domain);
+
+        // Send event
+        emit onPublishedResource(msg.sender);
     }
 
     function registerUser(bytes2 userCountry) public {
@@ -64,6 +74,9 @@ contract DAppManager {
 
         blacklists[country] = address(new BlacklistContract(votesLimit));
         blacklistsDeployed.push(country);
+
+        // Send event
+        emit onDeployedBlacklist();
     }
 
     function voteResource(string memory domain) public {
