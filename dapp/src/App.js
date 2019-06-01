@@ -227,7 +227,9 @@ export class App extends React.Component {
                 currentView: 'searcher',
                 isRegistered: true,
                 r_showLoader: false,
-                r_country: ''
+                r_country: '',
+                f_showLoader: false,
+                f_notFoundMsg: this.state.followingsResources.length > 0 ? false : true
             });
 
             this.container.success(
